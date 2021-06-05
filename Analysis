@@ -1,0 +1,963 @@
+library(dataRetrieval)
+library(data.table)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+library(heatwaveR)
+library(Kendall)
+library(trend)
+library(geojsonio)
+library(sp)
+library(readr)
+
+rm(list = ls())
+dev.off()
+
+statCd <- "00003" 
+startDate <- "1996-01-01"
+endDate <- "2019-12-31"
+states <- stateCd[1:51,]
+result <- vector('list', nrow(states))
+for(i in 1:nrow(states)) {
+  print(i)
+  tempDat_states = whatNWISdata(stateCd = states$STUSAB[i],parameterCd = "00010")
+  temp_states = tempDat_states %>%
+    filter(stat_cd == "00003") %>%
+    mutate(period = as.Date(endDate) - as.Date(startDate))
+  temp_states$end_year <- year(temp_states$end_date)
+  temp_states$start_year <- year(temp_states$begin_date)
+  temp_states <- temp_states[temp_states$start_year <= 1995 & temp_states$end_year >= 2019,]
+  result[[i]] <- temp_states
+}
+
+full_data <- do.call(rbind.data.frame, result)
+full_data$site_no_chr <- as.character(full_data$site_no)
+full_data$Order <- seq(from = 1, to = nrow(full_data), by = 1)
+full_data <- full_data[!duplicated(full_data$site_no_chr),]
+
+rm(list=setdiff(ls(), "full_data"))
+
+# setwd("D:/School/USGSdata")
+# write.csv(full_data, "292USGSsites_1996_2019.csv")
+# full_data$site_no <- paste0("0", full_data$site_no)
+
+# Extract daily mean values of water temperature
+startDate <- "1996-01-01"
+endDate <- "2019-12-31"
+dat_final_large <- readNWISdv(siteNumbers = full_data$site_no,
+                              parameterCd = "00010",
+                              startDate = startDate,
+                              endDate = endDate) 
+dat_final_large <- renameNWISColumns(dat_final_large)
+dat_final_small <- dat_final_large[,-c(6:51)]
+write.csv(dat_final_small, "DailyMeanWtemp_292USGSsites.csv")
+
+# Determine how much data is missing
+missing_data <- dat_final_small %>%
+  group_by(site_no) %>%
+  summarise(Total_Wtemp_DataAvail = sum(!is.na(Wtemp)))
+
+missing_data$Frac_Wtemp_Avail <- missing_data$Total_Wtemp_DataAvail/8765 # There are 8,765 days between 12/31/2019 - 1/1/1996
+
+threshold <- 0.75
+keep_sites_temp <- subset(missing_data, missing_data[,3] > threshold)
+
+# Append pertinent information to sites that you actually need data for
+nm <- c("station_nm", "dec_lat_va", "dec_long_va", "alt_va", "alt_datum_cd", "STUSAB")
+keep_sites_temp[nm] <- lapply(nm, function(x) full_data[[x]][match(keep_sites_temp$site_no, full_data$site_no)])
+rm(list=setdiff(ls(), c("keep_sites_temp", "full_data", "startDate", "endDate", "nm")))
+dat_final <- readNWISdv(siteNumbers = keep_sites_temp$site_no,
+                        parameterCd = "00010",
+                        startDate = startDate,
+                        endDate = endDate)
+dat_final <- renameNWISColumns(dat_final)
+dat_final <- dat_final[,-c(6:13)]
+dat_final$Wtemp[dat_final$Wtemp >= 50] <- NA
+dat_final$Wtemp[dat_final$Wtemp_cd == "P"] <- NA
+dat_final$Wtemp[dat_final$Wtemp_cd == "A [4]"] <- NA
+dat_final$Wtemp[dat_final$Wtemp_cd == "A R"] <- NA
+dat_final$Wtemp[dat_final$Wtemp_cd == "A e"] <- NA
+dat_final$Wtemp[dat_final$Wtemp_cd == "A <"] <- NA
+dat_final$Wtemp[dat_final$Wtemp_cd == "P Dis"] <- NA
+
+MaxGap_Wtemp <- dat_final %>%
+  group_by(site_no) %>%
+  summarise(MaxGap = with(rle(is.na(Wtemp)),
+                          max(0, max(lengths[values]))), .groups = 'drop')
+MaxGap_Wtemp$Frac_missing <- round(((MaxGap_Wtemp$MaxGap/8765)*100),digits=2)
+# remove_sites_wtemp <- MaxGap_Wtemp[MaxGap_Wtemp$Frac_missing > 5,]
+
+lat_long <- keep_sites_temp %>% group_by(site_no) %>% summarise(lat = mean(dec_lat_va),
+                                                     long = mean(dec_long_va))
+# write.csv(lat_long, '130USGSsites_24YearWTemp_LatLong.csv')
+
+### Discharge
+
+dat_final_flow <- readNWISdv(siteNumbers = keep_sites_temp$site_no,
+                        parameterCd = "00060",
+                        startDate = startDate,
+                        endDate = endDate)
+dat_final_flow <- renameNWISColumns(dat_final_flow)
+dat_final_flow$Flow[dat_final$Flow_cd == "P"] <- NA
+dat_final_flow$Flow[dat_final$Flow_cd == "A R"] <- NA
+dat_final_flow$Flow[dat_final$Flow_cd == "A e"] <- NA
+dat_final_flow$Flow[dat_final$Flow_cd == "A >"] <- NA
+dat_final_flow$Flow[dat_final$Flow_cd == "P e"] <- NA
+
+dat_final_flow$flow_cms <- dat_final_flow$Flow * 0.0283168
+
+flow_model <- lapply(unique(dat_final_flow$site_no),
+                     function(x) lm(flow_cms~Date, dat_final_flow[dat_final_flow$site_no == x,]))
+
+flow_resid <- do.call(rbind, by(dat_final_flow, dat_final_flow$site_no, function(x) {
+  model <- lm(flow_cms~Date, x)
+  data.frame(site_no = x$site_no[1], ResidualValue = resid(model))
+})) # need to figure out how to keep date in the data frame
+
+# library(geojsonio)
+# library(sp)
+
+usa <- geojson_read(
+  "http://eric.clst.org/assets/wiki/uploads/Stuff/gz_2010_us_040_00_500k.json", 
+  what = "sp"
+)
+
+lat_long$state <- NA
+
+for (i in 1:nrow(lat_long)) {
+  coords <- c(lat_long$long[i], lat_long$lat[i])
+  if(any(is.na(coords))) next
+  point <- sp::SpatialPoints(
+    matrix(
+      coords,
+      nrow = 1
+    )
+  )
+  sp::proj4string(point) <- sp::proj4string(usa)
+  polygon_check <- sp::over(point, usa)
+  lat_long$state[i] <- as.character(polygon_check$NAME)
+}
+
+lat_long$STUSAB <- state.abb[match(lat_long$state, state.name)]
+lat_long[16,4] <- "Delaware"
+lat_long[16,5] <- "DE"
+lat_long[69,4] <- "Louisiana"
+lat_long[69,5] <- "LA"
+table(lat_long$STUSAB)
+nrow(table(lat_long$STUSAB))
+
+### Run HW & CS analysis
+
+dat_final$DateFormatted <- as.Date(dat_final$Date, tz = "", "%Y-%m-%d")
+
+zz <- unique(dat_final$site_no)
+
+for(i in 1:length(zz)){
+  curDat = dat_final[dat_final$site_no == zz[i],]
+  ts_Warm = ts2clm(curDat, x = Date, y = Wtemp,
+                   climatologyPeriod = c(min(curDat$Date), max(curDat$Date)))
+  ts_Cold = ts2clm(curDat, x = Date, y = Wtemp,
+                   climatologyPeriod = c(min(curDat$Date), max(curDat$Date)), pctile = 10)
+  de_Warm = detect_event(ts_Warm, x = Date, y = Wtemp )
+  de_Cold = detect_event(ts_Cold, x = Date, y = Wtemp, coldSpells = TRUE )
+  cat_Warm = category(de_Warm, y = Wtemp, S = FALSE)
+  cat_Cold = category(de_Cold, y = Wtemp, S = FALSE)
+  curEventsWarm = de_Warm$event
+  curEventsCold = de_Cold$event
+  curEventsWarm$Station = zz[i]
+  curEventsCold$Station = zz[i]
+  curCatWarm = cat_Warm
+  curCatCold = cat_Cold
+  curCatWarm$Station = zz[i]
+  curCatCold$Station = zz[i]
+  if( i == 1){
+    saveDatWarm = curEventsWarm
+    saveDatCold = curEventsCold
+    saveCatWarm = curCatWarm
+    saveCatCold = curCatCold
+  } else{
+    saveDatWarm = rbind(saveDatWarm, curEventsWarm)
+    saveDatCold = rbind(saveDatCold, curEventsCold)
+    saveCatWarm = rbind(saveCatWarm, curCatWarm)
+    saveCatCold = rbind(saveCatCold, curCatCold)
+  }
+}
+
+### Count number of HW and CS events per station
+
+saveDatWarm$year <- year(saveDatWarm$date_start)
+saveDatWarm <- saveDatWarm[saveDatWarm$year >= 1996 & saveDatWarm$year <=2019,]
+HW_event_station <- aggregate(cbind(count = year) ~ Station, data = saveDatWarm, FUN = function(x){NROW(x)})
+
+saveDatCold$year <- year(saveDatCold$date_start)
+saveDatCold <- saveDatCold[saveDatCold$year >= 1996 & saveDatCold$year <=2019,]
+CS_event_station <- aggregate(cbind(count = year) ~ Station, data = saveDatCold, FUN = function(x){NROW(x)})
+
+###
+
+colnames(saveDatWarm)[23] <- "site_no"
+hw <- unique(setDT(lat_long)[, .(site_no, STUSAB)])[setDT(saveDatWarm), on = "site_no"]
+so_da <- read_csv('130USGSsites_24YearWTemp_LatLong.csv', col_types = list(
+  Order = col_double(),
+  STUSAB = col_character(),
+  Region = col_character(),
+  site_no = col_character(),
+  lat = col_double(),
+  long = col_double(),
+  state = col_character(),
+  StreamOrder = col_double(),
+  Reservoir = col_character(),
+  DrainageArea_mi2 = col_double()))
+so_da <- data.frame(so_da)
+so_da <- so_da %>%
+  mutate(site_no = ifelse(row_number()<=84, paste0("0", site_no), site_no))
+so_da$DrainageArea_km2 <- so_da$DrainageArea_mi2 * 2.59
+hw <- unique(setDT(so_da)[, .(site_no, StreamOrder)])[setDT(hw), on = "site_no"]
+hw <- unique(setDT(so_da)[, .(site_no, DrainageArea_km2)])[setDT(hw), on = "site_no"]
+hw <- unique(setDT(so_da)[, .(site_no, Reservoir)])[setDT(hw), on = "site_no"]
+hw$Year <- year(hw$date_start)
+hw$Month <- month(hw$date_start)
+hw$Season <- ifelse(hw$Month >=12, "Winter",
+                    ifelse(hw$Month >= 9, "Fall",
+                           ifelse(hw$Month >= 6, "Summer",
+                                  ifelse(hw$Month >= 3, "Spring",
+                                         ifelse(hw$Month >=1, "Winter", NA)))))
+
+usa_region <- data.frame(matrix(ncol = 2, nrow = 50))
+z <- c("STUSAB", "Region")
+colnames(usa_region) <- z
+usa_region$STUSAB <- c("IL","IN","KY","MO","OH","TN","WV",
+                       "IA","MI","MN","WI",
+                       "CT","DE","ME","MD","MA","NH","NJ","NY","PA","RI","VT",
+                       "ID","OR","WA",
+                       "AR","KS","LA","MS","OK","TX",
+                       "AL","FL","GA","NC","SC","VA",
+                       "AZ","CO","NM","UT",
+                       "CA","NV",
+                       "MT","NE","ND","SD","WY","AK","HI")
+usa_region$Region <- c("Central","Central","Central","Central","Central","Central","Central",
+                       "ENC","ENC","ENC","ENC",
+                       "NE","NE","NE","NE","NE","NE","NE","NE","NE","NE","NE",
+                       "NW","NW","NW",
+                       "South","South","South","South","South","South",
+                       "SE","SE","SE","SE","SE","SE",
+                       "SW","SW","SW","SW",
+                       "West","West",
+                       "WNC","WNC","WNC","WNC","WNC","Alaska","Hawaii")
+
+region <- data.frame(matrix(ncol = 1, nrow = 24))
+z <- "STUSAB"
+colnames(region) <- z
+region$STUSAB <- unique(lat_long$STUSAB)
+region <- unique(setDT(usa_region)[, .(STUSAB, Region)])[setDT(region), on = "STUSAB"]
+
+# hw <- unique(setDT(region)[, .(STUSAB, Region)])[setDT(hw), on = "STUSAB"]
+# lat_long <- unique(setDT(hw)[, .(STUSAB, Region)])[setDT(lat_long), on = "STUSAB"]
+# write.csv(lat_long, '130USGSsites_24YearWTemp_LatLong.csv')
+
+hw_noRes <- hw[hw$Reservoir == "None"]
+
+hw_region <- hw %>%
+  group_by(Year, Region) %>%
+  summarise(Avg.Duration = mean(duration),
+            Avg.CuInt = mean(intensity_cumulative_relThresh),
+            Avg.Onset = mean(rate_onset),
+            Avg.Decline = mean(rate_decline),
+            EventPerStation = length(duration)/length(unique(site_no)),
+            Total.Duration = sum(duration))
+
+hw_season <- hw %>%
+  group_by(Year, Season) %>%
+  summarise(Avg.Duration = mean(duration),
+            Avg.CuInt = mean(intensity_cumulative_relThresh),
+            Avg.Onset = mean(rate_onset),
+            Avg.Decline = mean(rate_decline),
+            EventPerStation = length(duration)/length(unique(site_no)),
+            Total.Duration = sum(duration))
+
+hw_time <- hw %>%
+  group_by(Year) %>%
+  summarise(Avg.Duration = mean(duration),
+            Avg.CuInt = mean(intensity_cumulative_relThresh),
+            Avg.Onset = mean(rate_onset),
+            Avg.Decline = mean(rate_decline),
+            EventPerStation = length(duration)/length(unique(site_no)),
+            Total.Duration = sum(duration))
+
+hw_order <- hw %>%
+  group_by(Year, StreamOrder) %>%
+  summarise(Avg.Duration = mean(duration),
+            Avg.CuInt = mean(intensity_cumulative_relThresh),
+            Avg.Onset = mean(rate_onset),
+            Avg.Decline = mean(rate_decline),
+            EventPerStation = length(duration)/length(unique(site_no)),
+            Total.Duration = sum(duration))
+
+x1 <- as.data.frame(seq(from = 1996, to = 2019, by = 1))
+x2 <- as.data.frame(seq(from = 1996, to = 2019, by = 1))
+x3 <- as.data.frame(seq(from = 1996, to = 2019, by = 1))
+x4 <- as.data.frame(seq(from = 1996, to = 2019, by = 1))
+x5 <- as.data.frame(seq(from = 1996, to = 2019, by = 1))
+x6 <- as.data.frame(seq(from = 1996, to = 2019, by = 1))
+x7 <- as.data.frame(seq(from = 1996, to = 2019, by = 1))
+x8 <- as.data.frame(seq(from = 1996, to = 2019, by = 1))
+x9 <- as.data.frame(seq(from = 1996, to = 2019, by = 1))
+x10 <- as.data.frame(seq(from = 1996, to = 2019, by = 1))
+names(x1)[1] <- "Year"
+names(x2)[1] <- "Year"
+names(x3)[1] <- "Year"
+names(x4)[1] <- "Year"
+names(x5)[1] <- "Year"
+names(x6)[1] <- "Year"
+names(x7)[1] <- "Year"
+names(x8)[1] <- "Year"
+names(x9)[1] <- "Year"
+names(x10)[1] <- "Year"
+x1$Region <- "NE"
+x2$Region <- "SE"
+x3$Region <- "Central"
+x4$Region <- "ENC"
+x5$Region <- "WNC"
+x6$Region <- "SW"
+x7$Region <- "South"
+x8$Region <- "West"
+x9$Region <- "NW"
+x10$Region <- "Alaska"
+region <- rbind(x1,x2,x3,x4,x5,x6,x7,x8,x9,x10)
+
+hw_region <- merge(hw_region, region, by = c("Year","Region"), all = TRUE)
+# hw_region[c(1:3,11,13,31,51,72:73,81,83,101,111,121,130:131,133,141,151,161,182:183,211),c(3:7)] <- 0
+# hw_region[is.na(hw_region)] <- 0
+
+hw_region[c(1,2,11,13,31,51,72,81,101,111,121,130,131,141,151,161,182,211),c(3:7)] <- 0
+
+x1 <- as.data.frame(seq(from = 1996, to = 2019, by = 1))
+x2 <- as.data.frame(seq(from = 1996, to = 2019, by = 1))
+x3 <- as.data.frame(seq(from = 1996, to = 2019, by = 1))
+x4 <- as.data.frame(seq(from = 1996, to = 2019, by = 1))
+x5 <- as.data.frame(seq(from = 1996, to = 2019, by = 1))
+x6 <- as.data.frame(seq(from = 1996, to = 2019, by = 1))
+x7 <- as.data.frame(seq(from = 1996, to = 2019, by = 1))
+x8 <- as.data.frame(seq(from = 1996, to = 2019, by = 1))
+x9 <- as.data.frame(seq(from = 1996, to = 2019, by = 1))
+names(x1)[1] <- "Year"
+names(x2)[1] <- "Year"
+names(x3)[1] <- "Year"
+names(x4)[1] <- "Year"
+names(x5)[1] <- "Year"
+names(x6)[1] <- "Year"
+names(x7)[1] <- "Year"
+names(x8)[1] <- "Year"
+names(x9)[1] <- "Year"
+names(x10)[1] <- "Year"
+x1$StreamOrder <- "1"
+x2$StreamOrder <- "2"
+x3$StreamOrder <- "3"
+x4$StreamOrder <- "4"
+x5$StreamOrder <- "5"
+x6$StreamOrder <- "6"
+x7$StreamOrder <- "7"
+x8$StreamOrder <- "8"
+x9$StreamOrder <- "9"
+x10$StreamOrder <- "NA"
+order <- rbind(x1,x2,x3,x4,x5,x6,x7,x8,x9,x10)
+
+hw_order <- merge(hw_order, order, by = c("Year","StreamOrder"), all = TRUE)
+hw_order[c(12,117,173,208),c(3:7)] <- 0
+
+hw_time$Type <- "HW"
+hw_time <- hw_time[,c(1,7,2:6)]
+
+aa <- unique(hw_time$Type)
+bb <- unique(hw_region$Region)
+cc <- unique(hw_season$Season)
+dd <- unique(hw_order$StreamOrder)
+
+#######################################################################################
+#                                                                                     #
+#                                       TIME                                          #
+#                                                                                     #
+#######################################################################################
+
+for(i in 1:length(aa)){
+  curDat = hw_time[hw_time$Type == aa[i],]
+  ts = ts(data = curDat[, 3],
+          frequency = 1,
+          start = min(curDat$Year),
+          end = max(curDat$Year))
+  ManKen = MannKendall(ts)
+  ss = sens.slope(ts)
+  p.val = ManKen$sl
+  slope = ss$estimates
+  Type = aa[i]
+  cur_hw_time = data.frame(Type = Type,
+                           slope = round(slope, 3),
+                           p.val = round(p.val, 4))
+  if( i == 1){
+    hw_time_duration = cur_hw_time
+  } else{
+    hw_time_duration = rbind(hw_time_duration, cur_hw_time)
+  }
+}
+
+for(i in 1:length(aa)){
+  curDat = hw_time[hw_time$Type == aa[i],]
+  ts = ts(data = curDat[, 4],
+          frequency = 1,
+          start = min(curDat$Year),
+          end = max(curDat$Year))
+  ManKen = MannKendall(ts)
+  ss = sens.slope(ts)
+  p.val = ManKen$sl
+  slope = ss$estimates
+  Type = aa[i]
+  cur_hw_time = data.frame(Type = Type,
+                           slope = round(slope, 3),
+                           p.val = round(p.val, 4))
+  if( i == 1){
+    hw_time_intensity = cur_hw_time
+  } else{
+    hw_time_intensity = rbind(hw_time_intensity, cur_hw_time)
+  }
+}
+
+# for(i in 1:length(aa)){
+#   curDat = hw_time[hw_time$Type == aa[i],]
+#   ts = ts(data = curDat[, 5],
+#           frequency = 1,
+#           start = min(curDat$Year),
+#           end = max(curDat$Year))
+#   ManKen = MannKendall(ts)
+#   ss = sens.slope(ts)
+#   p.val = ManKen$sl
+#   slope = ss$estimates
+#   Type = aa[i]
+#   cur_hw_time = data.frame(Type = Type,
+#                            slope = round(slope, 3),
+#                            p.val = round(p.val, 4))
+#   if( i == 1){
+#     hw_time_onset = cur_hw_time
+#   } else{
+#     hw_time_onset = rbind(hw_time_onset, cur_hw_time)
+#   }
+# }
+# 
+# for(i in 1:length(aa)){
+#   curDat = hw_time[hw_time$Type == aa[i],]
+#   ts = ts(data = curDat[, 6],
+#           frequency = 1,
+#           start = min(curDat$Year),
+#           end = max(curDat$Year))
+#   ManKen = MannKendall(ts)
+#   ss = sens.slope(ts)
+#   p.val = ManKen$sl
+#   slope = ss$estimates
+#   Type = aa[i]
+#   cur_hw_time = data.frame(Type = Type,
+#                            slope = round(slope, 3),
+#                            p.val = round(p.val, 4))
+#   if( i == 1){
+#     hw_time_decline = cur_hw_time
+#   } else{
+#     hw_time_decline = rbind(hw_time_decline, cur_hw_time)
+#   }
+# }
+# 
+for(i in 1:length(aa)){
+  curDat = hw_time[hw_time$Type == aa[i],]
+  ts = ts(data = curDat[, 7],
+          frequency = 1,
+          start = min(curDat$Year),
+          end = max(curDat$Year))
+  ManKen = MannKendall(ts)
+  ss = sens.slope(ts)
+  p.val = ManKen$sl
+  slope = ss$estimates
+  Type = aa[i]
+  cur_hw_time = data.frame(Type = Type,
+                           slope = round(slope, 3),
+                           p.val = round(p.val, 4))
+  if( i == 1){
+    hw_time_events = cur_hw_time
+  } else{
+    hw_time_events = rbind(hw_time_events, cur_hw_time)
+  }
+}
+
+#######################################################################################
+#                                                                                     #
+#                                     Region                                          #
+#                                                                                     #
+#######################################################################################
+
+for(i in 1:length(bb)){
+  curDat = hw_region[hw_region$Region == bb[i],]
+  ts = ts(data = curDat[, 3],
+          frequency = 1,
+          start = min(curDat$Year),
+          end = max(curDat$Year))
+  ManKen = MannKendall(ts)
+  ss = sens.slope(ts)
+  p.val = ManKen$sl
+  slope = ss$estimates
+  Region = bb[i]
+  cur_hw_region = data.frame(Type = "HW",
+                             Region = Region,
+                             slope = round(slope, 3),
+                             p.val = round(p.val, 4))
+  if( i == 1){
+    hw_region_duration = cur_hw_region
+  } else{
+    hw_region_duration = rbind(hw_region_duration, cur_hw_region)
+  }
+}
+
+for(i in 1:length(bb)){
+  curDat = hw_region[hw_region$Region == bb[i],]
+  ts = ts(data = curDat[, 4],
+          frequency = 1,
+          start = min(curDat$Year),
+          end = max(curDat$Year))
+  ManKen = MannKendall(ts)
+  ss = sens.slope(ts)
+  p.val = ManKen$sl
+  slope = ss$estimates
+  Region = bb[i]
+  cur_hw_region = data.frame(Type = "HW",
+                             Region = Region,
+                             slope = round(slope, 3),
+                             p.val = round(p.val, 4))
+  if( i == 1){
+    hw_region_intensity = cur_hw_region
+  } else{
+    hw_region_intensity = rbind(hw_region_intensity, cur_hw_region)
+  }
+}
+
+# for(i in 1:length(bb)){
+#   curDat = hw_region[hw_region$Region == bb[i],]
+#   ts = ts(data = curDat[, 5],
+#           frequency = 1,
+#           start = min(curDat$Year),
+#           end = max(curDat$Year))
+#   ManKen = MannKendall(ts)
+#   ss = sens.slope(ts)
+#   p.val = ManKen$sl
+#   slope = ss$estimates
+#   Region = bb[i]
+#   cur_hw_region = data.frame(Type = "HW",
+#                              Region = Region,
+#                              slope = round(slope, 3),
+#                              p.val = round(p.val, 4))
+#   if( i == 1){
+#     hw_region_onset = cur_hw_region
+#   } else{
+#     hw_region_onset = rbind(hw_region_onset, cur_hw_region)
+#   }
+# }
+# 
+# for(i in 1:length(bb)){
+#   curDat = hw_region[hw_region$Region == bb[i],]
+#   ts = ts(data = curDat[, 6],
+#           frequency = 1,
+#           start = min(curDat$Year),
+#           end = max(curDat$Year))
+#   ManKen = MannKendall(ts)
+#   ss = sens.slope(ts)
+#   p.val = ManKen$sl
+#   slope = ss$estimates
+#   Region = bb[i]
+#   cur_hw_region = data.frame(Type = "HW",
+#                              Region = Region,
+#                              slope = round(slope, 3),
+#                              p.val = round(p.val, 4))
+#   if( i == 1){
+#     hw_region_decline = cur_hw_region
+#   } else{
+#     hw_region_decline = rbind(hw_region_decline, cur_hw_region)
+#   }
+# }
+
+for(i in 1:length(bb)){
+  curDat = hw_region[hw_region$Region == bb[i],]
+  ts = ts(data = curDat[, 7],
+          frequency = 1,
+          start = min(curDat$Year),
+          end = max(curDat$Year))
+  ManKen = MannKendall(ts)
+  ss = sens.slope(ts)
+  p.val = ManKen$sl
+  slope = ss$estimates
+  Region = bb[i]
+  cur_hw_region = data.frame(Type = "HW",
+                             Region = Region,
+                             slope = round(slope, 3),
+                             p.val = round(p.val, 4))
+  if( i == 1){
+    hw_region_events = cur_hw_region
+  } else{
+    hw_region_events = rbind(hw_region_events, cur_hw_region)
+  }
+}
+
+#######################################################################################
+#                                                                                     #
+#                                     Season                                          #
+#                                                                                     #
+#######################################################################################
+
+for(i in 1:length(cc)){
+  curDat = hw_season[hw_season$Season == cc[i],]
+  ts = ts(data = curDat[, 3],
+          frequency = 1,
+          start = min(curDat$Year),
+          end = max(curDat$Year))
+  ManKen = MannKendall(ts)
+  ss = sens.slope(ts)
+  p.val = ManKen$sl
+  slope = ss$estimates
+  Season = cc[i]
+  cur_hw_season = data.frame(Type = "HW",
+                             Season = Season,
+                             slope = round(slope, 3),
+                             p.val = round(p.val, 4))
+  if( i == 1){
+    hw_season_duration = cur_hw_season
+  } else{
+    hw_season_duration = rbind(hw_season_duration, cur_hw_season)
+  }
+}
+
+for(i in 1:length(cc)){
+  curDat = hw_season[hw_season$Season == cc[i],]
+  ts = ts(data = curDat[, 4],
+          frequency = 1,
+          start = min(curDat$Year),
+          end = max(curDat$Year))
+  ManKen = MannKendall(ts)
+  ss = sens.slope(ts)
+  p.val = ManKen$sl
+  slope = ss$estimates
+  Season = cc[i]
+  cur_hw_season = data.frame(Type = "HW",
+                             Season = Season,
+                             slope = round(slope, 3),
+                             p.val = round(p.val, 4))
+  if( i == 1){
+    hw_season_intensity = cur_hw_season
+  } else{
+    hw_season_intensity = rbind(hw_season_intensity, cur_hw_season)
+  }
+}
+
+# for(i in 1:length(cc)){
+#   curDat = hw_season[hw_season$Season == cc[i],]
+#   ts = ts(data = curDat[, 5],
+#           frequency = 1,
+#           start = min(curDat$Year),
+#           end = max(curDat$Year))
+#   ManKen = MannKendall(ts)
+#   ss = sens.slope(ts)
+#   p.val = ManKen$sl
+#   slope = ss$estimates
+#   Season = cc[i]
+#   cur_hw_season = data.frame(Type = "HW",
+#                              Season = Season,
+#                              slope = round(slope, 3),
+#                              p.val = round(p.val, 4))
+#   if( i == 1){
+#     hw_season_onset = cur_hw_season
+#   } else{
+#     hw_season_onset = rbind(hw_season_onset, cur_hw_season)
+#   }
+# }
+# 
+# for(i in 1:length(cc)){
+#   curDat = hw_season[hw_season$Season == cc[i],]
+#   ts = ts(data = curDat[, 6],
+#           frequency = 1,
+#           start = min(curDat$Year),
+#           end = max(curDat$Year))
+#   ManKen = MannKendall(ts)
+#   ss = sens.slope(ts)
+#   p.val = ManKen$sl
+#   slope = ss$estimates
+#   Season = cc[i]
+#   cur_hw_season = data.frame(Type = "HW",
+#                              Season = Season,
+#                              slope = round(slope, 3),
+#                              p.val = round(p.val, 4))
+#   if( i == 1){
+#     hw_season_decline = cur_hw_season
+#   } else{
+#     hw_season_decline = rbind(hw_season_decline, cur_hw_season)
+#   }
+# }
+
+for(i in 1:length(cc)){
+  curDat = hw_season[hw_season$Season == cc[i],]
+  ts = ts(data = curDat[, 7],
+          frequency = 1,
+          start = min(curDat$Year),
+          end = max(curDat$Year))
+  ManKen = MannKendall(ts)
+  ss = sens.slope(ts)
+  p.val = ManKen$sl
+  slope = ss$estimates
+  Season = cc[i]
+  cur_hw_season = data.frame(Type = "HW",
+                             Season = Season,
+                             slope = round(slope, 3),
+                             p.val = round(p.val, 4))
+  if( i == 1){
+    hw_season_events = cur_hw_season
+  } else{
+    hw_season_events = rbind(hw_season_events, cur_hw_season)
+  }
+}
+
+#######################################################################################
+#                                                                                     #
+#                                     Stream Order                                          #
+#                                                                                     #
+#######################################################################################
+
+for(i in 1:length(dd)){
+  curDat = hw_order[hw_order$StreamOrder == dd[i],]
+  ts = ts(data = curDat[, 3],
+          frequency = 1,
+          start = min(curDat$Year),
+          end = max(curDat$Year))
+  ManKen = MannKendall(ts)
+  ss = sens.slope(ts)
+  p.val = ManKen$sl
+  slope = ss$estimates
+  StreamOrder = dd[i]
+  cur_hw_order = data.frame(Type = "HW",
+                             StreamOrder = StreamOrder,
+                             slope = round(slope, 3),
+                             p.val = round(p.val, 4))
+  if( i == 1){
+    hw_order_duration = cur_hw_order
+  } else{
+    hw_order_duration = rbind(hw_order_duration, cur_hw_order)
+  }
+}
+
+for(i in 1:length(dd)){
+  curDat = hw_order[hw_order$StreamOrder == dd[i],]
+  ts = ts(data = curDat[, 4],
+          frequency = 1,
+          start = min(curDat$Year),
+          end = max(curDat$Year))
+  ManKen = MannKendall(ts)
+  ss = sens.slope(ts)
+  p.val = ManKen$sl
+  slope = ss$estimates
+  StreamOrder = dd[i]
+  cur_hw_order = data.frame(Type = "HW",
+                             StreamOrder = StreamOrder,
+                             slope = round(slope, 3),
+                             p.val = round(p.val, 4))
+  if( i == 1){
+    hw_order_intensity = cur_hw_order
+  } else{
+    hw_order_intensity = rbind(hw_order_intensity, cur_hw_order)
+  }
+}
+
+# for(i in 1:length(dd)){
+#   curDat = hw_order[hw_order$StreamOrder == dd[i],]
+#   ts = ts(data = curDat[, 5],
+#           frequency = 1,
+#           start = min(curDat$Year),
+#           end = max(curDat$Year))
+#   ManKen = MannKendall(ts)
+#   ss = sens.slope(ts)
+#   p.val = ManKen$sl
+#   slope = ss$estimates
+#   StreamOrder = dd[i]
+#   cur_hw_order = data.frame(Type = "HW",
+#                              StreamOrder = StreamOrder,
+#                              slope = round(slope, 3),
+#                              p.val = round(p.val, 4))
+#   if( i == 1){
+#     hw_order_onset = cur_hw_order
+#   } else{
+#     hw_order_onset = rbind(hw_order_onset, cur_hw_order)
+#   }
+# }
+# 
+# for(i in 1:length(dd)){
+#   curDat = hw_order[hw_order$StreamOrder == dd[i],]
+#   ts = ts(data = curDat[, 6],
+#           frequency = 1,
+#           start = min(curDat$Year),
+#           end = max(curDat$Year))
+#   ManKen = MannKendall(ts)
+#   ss = sens.slope(ts)
+#   p.val = ManKen$sl
+#   slope = ss$estimates
+#   StreamOrder = dd[i]
+#   cur_hw_order = data.frame(Type = "HW",
+#                              StreamOrder = StreamOrder,
+#                              slope = round(slope, 3),
+#                              p.val = round(p.val, 4))
+#   if( i == 1){
+#     hw_order_decline = cur_hw_order
+#   } else{
+#     hw_order_decline = rbind(hw_order_decline, cur_hw_order)
+#   }
+# }
+
+for(i in 1:length(dd)){
+  curDat = hw_order[hw_order$StreamOrder == dd[i],]
+  ts = ts(data = curDat[, 7],
+          frequency = 1,
+          start = min(curDat$Year),
+          end = max(curDat$Year))
+  ManKen = MannKendall(ts)
+  ss = sens.slope(ts)
+  p.val = ManKen$sl
+  slope = ss$estimates
+  StreamOrder = dd[i]
+  cur_hw_order = data.frame(Type = "HW",
+                             StreamOrder = StreamOrder,
+                             slope = round(slope, 3),
+                             p.val = round(p.val, 4))
+  if( i == 1){
+    hw_order_events = cur_hw_order
+  } else{
+    hw_order_events = rbind(hw_order_events, cur_hw_order)
+  }
+}
+
+hw_time_output <- rbind(hw_time_duration,
+                        hw_time_intensity,
+                        hw_time_events)
+hw_time_output$Variable <- c("duration",
+                             "intensity",
+                             "frequency")
+
+hw_region_output <- rbind(hw_region_duration,
+                          hw_region_intensity,
+                          hw_region_events)
+duration <- data.frame(rep("duration",10))
+intensity <- data.frame(rep("intensity",10))
+frequency <- data.frame(rep("frequency",10))
+# onset <- data.frame(rep("onset",7))
+# decline <- data.frame(rep("decline",7))
+colnames(duration)[1] <- "variable"
+colnames(intensity)[1] <- "variable"
+colnames(frequency)[1] <- "variable"
+# colnames(onset)[1] <- "variable"
+#mcolnames(decline)[1] <- "variable"
+variables <- base::rbind(duration,intensity,frequency)
+hw_region_output$Variable <- variables
+
+hw_season_output <- rbind(hw_season_duration,
+                          hw_season_intensity,
+                          hw_season_events)
+duration <- data.frame(rep("duration",4))
+intensity <- data.frame(rep("intensity",4))
+frequency <- data.frame(rep("frequency",4))
+# onset <- data.frame(rep("onset",4))
+# decline <- data.frame(rep("decline",4))
+colnames(duration)[1] <- "variable"
+colnames(intensity)[1] <- "variable"
+colnames(frequency)[1] <- "variable"
+# colnames(onset)[1] <- "variable"
+# colnames(decline)[1] <- "variable"
+variables <- base::rbind(duration,intensity,frequency)
+hw_season_output$Variable <- variables
+
+hw_order_output <- rbind(hw_order_duration,
+                          hw_order_intensity,
+                          hw_order_events)
+duration <- data.frame(rep("duration",9))
+intensity <- data.frame(rep("intensity",9))
+frequency <- data.frame(rep("frequency",9))
+# onset <- data.frame(rep("onset",7))
+# decline <- data.frame(rep("decline",7))
+colnames(duration)[1] <- "variable"
+colnames(intensity)[1] <- "variable"
+colnames(frequency)[1] <- "variable"
+# colnames(onset)[1] <- "variable"
+#mcolnames(decline)[1] <- "variable"
+variables <- base::rbind(duration,intensity,frequency)
+hw_order_output$Variable <- variables
+
+View(filter(hw_time_output, p.val <= 0.05))
+View(filter(hw_region_output, p.val <= 0.05))
+View(filter(hw_season_output, p.val <= 0.05))
+View(filter(hw_order_output, p.val <= 0.05))
+
+ggplot(data = hw_time, aes(x = Year, y = EventPerStation)) +
+  stat_smooth(method = "lm", formula = y~x) +
+  geom_point(size = 2) +
+  labs(y = "Avg. HW Frequency per Station") +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        text = element_text(size = 14, color = "black"),
+        axis.title.x = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 12, color = "black"))
+
+ggplot(data = hw_region, aes(x = Year, y = EventPerStation)) +
+  stat_smooth(method = "lm", formula = y~x) +
+  geom_point(size = 2) +
+  labs(y = "Avg. HW Frequency per Station") +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        text = element_text(size = 14, color = "black"),
+        axis.text.x = element_text(angle = 90, vjust = 0.5), 
+        axis.title.x = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 12, color = "black")) +
+  facet_wrap(~Region)
+
+ggplot(data = hw_region, aes(x = Year, y = Avg.Duration)) +
+  stat_smooth(method = "lm", formula = y~x) +
+  geom_point(size = 2) +
+  labs(y = "Avg. HW Duration per Station") +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        text = element_text(size = 14, color = "black"),
+        axis.text.x = element_text(angle = 90, vjust = 0.5), 
+        axis.title.x = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 12, color = "black")) +
+  facet_wrap(~Region)
+
+ggplot(data = hw_season, aes(x = Year, y = EventPerStation)) +
+  stat_smooth(method = "lm", formula = y~x) +
+  geom_point(size = 2) +
+  labs(y = "Avg. HW Frequency per Station") +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        text = element_text(size = 14, color = "black"),
+        axis.text.x = element_text(angle = 90, vjust = 0.5), 
+        axis.title.x = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 12, color = "black")) +
+  facet_wrap(~Season)
+
+ggplot(data = hw_season, aes(x = Year, y = Avg.CuInt)) +
+  stat_smooth(method = "lm", formula = y~x) +
+  geom_point(size = 2) +
+  labs(y = "Avg. HW Intensity per Station") +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        text = element_text(size = 14, color = "black"),
+        axis.text.x = element_text(angle = 90, vjust = 0.5), 
+        axis.title.x = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 12, color = "black")) +
+  facet_wrap(~Season)
+
+ggplot(data = hw_order, aes(x = Year, y = EventPerStation)) +
+  stat_smooth(method = "lm", formula = y~x) +
+  geom_point(size = 2) +
+  labs(y = "Avg. HW Frequency per Stream Order") +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        text = element_text(size = 14, color = "black"),
+        axis.text.x = element_text(angle = 90, vjust = 0.5), 
+        axis.title.x = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 12, color = "black")) +
+  facet_wrap(~StreamOrder)
