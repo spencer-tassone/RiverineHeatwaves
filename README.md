@@ -6,4 +6,4 @@ The analysis flows as follows:
 1. DataPull.R
    - this file pulls the data from USGS using the 'dataRetrieval' R package then cleans the datasets according to the:
      - [USGS Daily Data-Value Qualification Codes](https://help.waterdata.usgs.gov/codes-and-parameters/instantaneous-value-qualification-code-uv_rmk_cd)
-     - [USGS Daily Value Status Codes)](https://help.waterdata.usgs.gov/codes-and-parameters/instantaneous-and-daily-value-status-codes)
+     - [USGS Daily Value Status Codes](https://help.waterdata.usgs.gov/codes-and-parameters/instantaneous-and-daily-value-status-codes)
