@@ -12,7 +12,7 @@ The analysis flows as follows:
    - This file calculates a residual Q in order to determine if the observed mean Q on any day was higher or lower than normal. There are three methods we tested to determine how to calculate residual Q:
      - Median Q
      - Rolling 14-day Mean of Median Q
-     - Generalized Additive Model (GAM) using Day of Year (DOY) with a cubic-cyclic spline as a preditor of Q
+     - Generalized Additive Model (GAM) using Day of Year (DoY) with a cubic-cyclic spline as a preditor of Q
 
 3. SR_HWs.R
    - This file runs the stream and river (SR) heatwave (HW) analyses.
