@@ -2,6 +2,8 @@ library(dataRetrieval)
 library(data.table)
 library(dplyr)
 library(lubridate)
+library(geojsonio)
+library(sp)
 
 rm(list = ls())
 dev.off()
@@ -74,6 +76,36 @@ lat_long <- keep_sites_temp %>%
   summarise(lat = mean(dec_lat_va),
             long = mean(dec_long_va))
 
+### Add state name and abbreviation to lat_long
+usa <- geojson_read(
+  "http://eric.clst.org/assets/wiki/uploads/Stuff/gz_2010_us_040_00_500k.json", 
+  what = "sp"
+)
+
+lat_long$state <- NA
+
+for (i in 1:nrow(lat_long)) {
+  coords <- c(lat_long$long[i], lat_long$lat[i])
+  if(any(is.na(coords))) next
+  point <- sp::SpatialPoints(
+    matrix(
+      coords,
+      nrow = 1
+    )
+  )
+  sp::proj4string(point) <- sp::proj4string(usa)
+  polygon_check <- sp::over(point, usa)
+  lat_long$state[i] <- as.character(polygon_check$NAME)
+}
+
+lat_long$STUSAB <- state.abb[match(lat_long$state, state.name)]
+lat_long[15,4] <- "Delaware"
+lat_long[15,5] <- "DE"
+lat_long[70,4] <- "Louisiana"
+lat_long[70,5] <- "LA"
+table(lat_long$STUSAB)
+nrow(table(lat_long$STUSAB))                             
+                              
 setwd("D:/School/USGSdata/GitHub")
 # write.csv(lat_long, '131USGSsites_25YearWTemp_LatLong.csv')
 
