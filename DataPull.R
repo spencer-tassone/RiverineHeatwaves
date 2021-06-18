@@ -4,6 +4,7 @@ library(dplyr)
 library(lubridate)
 library(geojsonio)
 library(sp)
+library(readr)
 
 rm(list = ls())
 dev.off()
@@ -16,9 +17,9 @@ states <- stateCd[1:51,]
 result <- vector('list', nrow(states))
 for(i in 1:nrow(states)) {
   print(i)
-  tempDat_states = whatNWISdata(stateCd = states$STUSAB[i],parameterCd = "00010") # water temperature (C)
+  tempDat_states = whatNWISdata(stateCd = states$STUSAB[i],parameterCd = "00010") #water temperature(C)
   temp_states = tempDat_states %>%
-    filter(stat_cd == "00003") %>%
+    filter(stat_cd == "00003") %>% #mean
     mutate(period = as.Date(endDate) - as.Date(startDate))
   temp_states$end_year <- year(temp_states$end_date)
   temp_states$start_year <- year(temp_states$begin_date)
@@ -104,8 +105,8 @@ lat_long[15,5] <- "DE"
 lat_long[70,4] <- "Louisiana"
 lat_long[70,5] <- "LA"
 table(lat_long$STUSAB)
-nrow(table(lat_long$STUSAB))                             
-                              
+nrow(table(lat_long$STUSAB))
+
 setwd("D:/School/USGSdata/GitHub")
 # write.csv(lat_long, '131USGSsites_25YearWTemp_LatLong.csv')
 
@@ -134,5 +135,5 @@ keep_sites_Q <- subset(missing_data, missing_data[,3] > threshold) # 104 station
 
 Q_daily_dat <- Q_daily_dat[Q_daily_dat$site_no %in% keep_sites_Q$site_no,]
 
-write.csv(Wtemp_daily_dat,'Wtemp_daily_dat.csv')
-write.csv(Q_daily_dat,'Q_daily_dat.csv')
+# write.csv(Wtemp_daily_dat,'Wtemp_daily_dat.csv')
+# write.csv(Q_daily_dat,'Q_daily_dat.csv')
