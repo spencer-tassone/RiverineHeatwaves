@@ -32,4 +32,4 @@ The analysis flows as follows:
      - [Vignettes and event metric/unit descriptions found here](https://cran.rstudio.com/web/packages/heatwaveR/readme/README.html)
 
 4. Watersheds.R
-   - This file extracts the watershed shapefiles for 102 of the 116 watersheds. Those not included are for states where StreamStats is not setup (i.e., TX, NV, AK). These shapefiles are used in determing the dominant landcovers of the watersheds.
+   - This file extracts the watershed shapefiles for 102 of the 116 watersheds. Those not included are for states where StreamStats is not setup (i.e., TX, NV, AK) or stations that are tidal (e.g., SC had several sites in the intercoastal waterway). These shapefiles are used in determing the dominant landcovers of the watersheds.
