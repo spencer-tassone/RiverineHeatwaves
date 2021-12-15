@@ -20,7 +20,7 @@ The analysis flows as follows:
          3. Equal or exceed 25 feet in height and exceed 15 acre-feet in storage.
          4. Equal or exceed 50 acre-feet storage and exceed 6 feet in height.
          
-     - Drainage Area: if available, these values were pulled from the site descrition of a station on the USGS website - [see exaple here](https://waterdata.usgs.gov/nwis/inventory/?site_no=02011400&agency_cd=USGS) where the drainage area for this sites = 157 square miles.
+     - Drainage Area: if available, these values were pulled from the site descrition of a station on the USGS website - [see example here](https://waterdata.usgs.gov/nwis/inventory/?site_no=02011400&agency_cd=USGS) where the drainage area for this sites = 157 square miles.
 2. ResidualQ.R
    - This file calculates a residual Q in order to determine if the observed mean Q on any day was higher or lower than normal. There are three methods we tested to determine how to calculate residual Q:
      - Median Q
