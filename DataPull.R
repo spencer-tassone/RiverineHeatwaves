@@ -9,10 +9,10 @@ library(readr)
 rm(list = ls())
 dev.off()
 
-### Find stations with available daily mean water temperature data between 1996-2020
+### Find stations with available daily mean water temperature data between 1996-2021
 statCd <- "00003" # statistics parameter code = mean
 startDate <- "1996-01-01"
-endDate <- "2020-12-31"
+endDate <- "2021-12-31"
 states <- stateCd[1:51,]
 result <- vector('list', nrow(states))
 for(i in 1:nrow(states)) {
@@ -23,18 +23,18 @@ for(i in 1:nrow(states)) {
     mutate(period = as.Date(endDate) - as.Date(startDate))
   temp_states$end_year <- year(temp_states$end_date)
   temp_states$start_year <- year(temp_states$begin_date)
-  temp_states <- temp_states[temp_states$start_year <= 1995 & temp_states$end_year >= 2020,]
+  temp_states <- temp_states[temp_states$start_year <= 1995 & temp_states$end_year >= 2021,]
   result[[i]] <- temp_states
 } # Takes a while to run ~10-15 min
 full_station_list <- do.call(rbind.data.frame, result)
 full_station_list$site_no_chr <- as.character(full_station_list$site_no)
 full_station_list$Order <- seq(from = 1, to = nrow(full_station_list), by = 1)
 full_station_list <- full_station_list[!duplicated(full_station_list$site_no_chr),] # All available USGS stations with daily mean water temperature data between 1996-2020 
-rm(list=setdiff(ls(), "full_station_list")) # 291 stations
+rm(list=setdiff(ls(), "full_station_list")) # 284 stations
 
 ### Extract daily mean water temperature from full_station_list. Also takes a while to run ~1 hour
 startDate <- "1996-01-01"
-endDate <- "2020-12-31"
+endDate <- "2021-12-31"
 dat_final_large <- readNWISdv(siteNumbers = full_station_list$site_no, # readNWISdv pulls daily mean values
                               parameterCd = "00010", # water temperature (C)
                               startDate = startDate,
@@ -47,10 +47,15 @@ missing_data <- Wtemp_daily %>%
   group_by(site_no) %>%
   summarise(Total_Wtemp_DataAvail = sum(!is.na(Wtemp)))
 
-missing_data$Frac_Wtemp_Avail <- round(missing_data$Total_Wtemp_DataAvail/9131,2) # There are 9,131 days between 12/31/2020 - 1/1/1996
+missing_data$Frac_Wtemp_Avail <- round(missing_data$Total_Wtemp_DataAvail/9496,2) # There are 9,496 days between 12/31/2021 - 1/1/1996
 
 threshold <- 0.75
-keep_sites_temp <- subset(missing_data, missing_data[,3] > threshold) # 131 stations
+keep_sites_temp <- subset(missing_data, missing_data[,3] > threshold) # 132 stations
+
+### Remove stations that are tidally influenced or are lakes
+
+remove_sites <- keep_sites_temp[c(15,20:23,31:34,71:73,77),]
+keep_sites_temp <- keep_sites_temp[!(keep_sites_temp$site_no %in% remove_sites$site_no),] # 119 stations
 
 ### Append pertinent information to sites that you actually need data for
 nm <- c("station_nm", "dec_lat_va", "dec_long_va", "alt_va", "alt_datum_cd", "STUSAB")
@@ -70,7 +75,7 @@ Wtemp_daily_dat$Wtemp[Wtemp_daily_dat$Wtemp_cd == "P Dis"] <- NA
 Wtemp_daily_dat$Wtemp[Wtemp_daily_dat$Wtemp_cd == "P Eqp"] <- NA
 Wtemp_daily_dat$Wtemp[Wtemp_daily_dat$Wtemp_cd == "P Mnt"] <- NA
 
-### Get station latitutde and longitude
+### Get station latitude and longitude
 
 lat_long <- keep_sites_temp %>%
   group_by(site_no) %>%
@@ -100,15 +105,11 @@ for (i in 1:nrow(lat_long)) {
 }
 
 lat_long$STUSAB <- state.abb[match(lat_long$state, state.name)]
-lat_long[15,4] <- "Delaware"
-lat_long[15,5] <- "DE"
-lat_long[70,4] <- "Louisiana"
-lat_long[70,5] <- "LA"
 table(lat_long$STUSAB)
 nrow(table(lat_long$STUSAB))
 
-setwd("D:/School/USGSdata/GitHub")
-# write.csv(lat_long, '131USGSsites_25YearWTemp_LatLong.csv')
+setwd("F:/School/USGSdata/GitHub")
+# write.csv(lat_long, 'UPDATE_119USGSsites_26YearWTemp_LatLong.csv')
 
 ### Extract daily mean discharge (Q) from keep_sites_temp. Takes ~10-15 min to run.
 Q_daily_dat <- readNWISdv(siteNumbers = keep_sites_temp$site_no,
@@ -128,12 +129,12 @@ Q_daily_dat <- Q_daily_dat[,c(1:3,6,5)]
 missing_data <- Q_daily_dat %>%
   group_by(site_no) %>%
   summarise(Total_Q_DataAvail = sum(!is.na(flow_cms)))
-missing_data$Frac_Wtemp_Avail <- round(missing_data$Total_Q_DataAvail/9131,2) # There are 9,131 days between 12/31/2020 - 1/1/1996
+missing_data$Frac_Wtemp_Avail <- round(missing_data$Total_Q_DataAvail/9496,2) # There are 9,496 days between 12/31/2021 - 1/1/1996
 
 threshold <- 0.75
 keep_sites_Q <- subset(missing_data, missing_data[,3] > threshold) # 104 stations
 
 Q_daily_dat <- Q_daily_dat[Q_daily_dat$site_no %in% keep_sites_Q$site_no,]
 
-# write.csv(Wtemp_daily_dat,'Wtemp_daily_dat.csv')
-# write.csv(Q_daily_dat,'Q_daily_dat.csv')
+write.csv(Wtemp_daily_dat,'Wtemp_daily_dat.csv')
+write.csv(Q_daily_dat,'Q_daily_dat.csv')
