@@ -26,6 +26,7 @@ The analysis flows as follows:
      - Median Q
      - Rolling 14-day Mean of Median Q
      - Generalized Additive Model (GAM) using Day of Year (DoY) with a cubic-cyclic spline as a preditor of Q
+     - Using the marine heatwave approach (heatwaveR package) to get a seasonally adjusted 'climatology' of Q 
 
 3. SR_HWs.R
    - This file runs the stream and river (SR) heatwave (HW) analyses.
