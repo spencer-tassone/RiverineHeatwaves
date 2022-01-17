@@ -8,27 +8,26 @@ library(sp)
 rm(list = ls())
 dev.off()
 
-setwd("D:/School/USGSdata/GitHub")
+setwd("F:/School/USGSdata/GitHub")
 
 Wtemp_daily_dat <- read.csv('Wtemp_daily_dat.csv')
 Wtemp_daily_dat$Date <- as.Date(Wtemp_daily_dat$Date)
 Wtemp_daily_dat$site_no <- as.character(Wtemp_daily_dat$site_no)
 Wtemp_daily_dat <- Wtemp_daily_dat %>%
-  mutate(site_no = ifelse(row_number()<=716677, paste0("0", site_no), site_no))
-
+  mutate(site_no = ifelse(row_number()<=638386, paste0("0", site_no), site_no))
 
 station_details <- read.csv('Station_Details.csv')
 station_details$site_no <- as.character(station_details$site_no)
 station_details <- station_details %>%
-  mutate(site_no = ifelse(row_number()<=85, paste0("0", site_no), site_no))
-station_details[131,2] <- "420451121510000"
+  mutate(site_no = ifelse(row_number()<=86, paste0("0", site_no), site_no))
+station_details[132,2] <- "420451121510000"
 station_details$DrainageArea_km2 <- station_details$DrainageArea_mi2 * 2.59
 
 residualQ <- read.csv('ResidualQ.csv')
 residualQ$Date <- as.Date(residualQ$Date)
 residualQ$site_no <- as.character(residualQ$site_no)
 residualQ <- residualQ %>%
-  mutate(site_no = ifelse(row_number()<=560332, paste0("0", site_no), site_no))
+  mutate(site_no = ifelse(row_number()<=582784, paste0("0", site_no), site_no))
 
 ### Run HW & CS analysis
 
@@ -132,11 +131,11 @@ usa_region$Region <- c("Central","Central","Central","Central","Central","Centra
 station_details <- left_join(station_details, usa_region, by = 'STUSAB')
 hw <- left_join(hw, usa_region, by = 'STUSAB')
 
-### Mean residual Q (cfs) during heatwave event
+### Mean residual Q (cms) during heatwave event
 
 ranges <- mapply(function(x, y, z)  seq.Date(y, z, 1), hw$site_no,  hw$date_start, hw$date_end, USE.NAMES = TRUE)
 hw$MeanResidaulQ <- mapply(function(a, b)
-  mean(residualQ$ResidualQ[residualQ$site_no == b][match(a, residualQ$Date[residualQ$site_no == b])], na.rm = T), ranges, names(ranges))
+  mean(residualQ$mhw_residualQ[residualQ$site_no == b][match(a, residualQ$Date[residualQ$site_no == b])], na.rm = T), ranges, names(ranges))
 
 ###
 
@@ -172,17 +171,25 @@ hw_order <- hw %>%
             Avg.Decline = mean(rate_decline, na.rm = T),
             SumEvents = length(duration))
 
+hw %>%
+  group_by(Region) %>%
+  summarise(count = n_distinct(site_no))
+
 hw_region$nStations[hw_region$Region == 'Alaska'] <- 1
 hw_region$nStations[hw_region$Region == 'Central'] <- 2
 hw_region$nStations[hw_region$Region == 'ENC'] <- 4
-hw_region$nStations[hw_region$Region == 'NE'] <- 18
+hw_region$nStations[hw_region$Region == 'NE'] <- 17
 hw_region$nStations[hw_region$Region == 'NW'] <- 38
-hw_region$nStations[hw_region$Region == 'SE'] <- 30
-hw_region$nStations[hw_region$Region == 'South'] <- 14
+hw_region$nStations[hw_region$Region == 'SE'] <- 22
+hw_region$nStations[hw_region$Region == 'South'] <- 11
 hw_region$nStations[hw_region$Region == 'SW'] <- 13
 hw_region$nStations[hw_region$Region == 'West'] <- 6
 hw_region$nStations[hw_region$Region == 'WNC'] <- 5
 hw_region$Frequency = round(hw_region$SumEvents/hw_region$nStations, digits = 2)
+
+station_details %>%
+  group_by(StreamOrder) %>%
+  summarise(count = n_distinct(site_no))
 
 hw_order$nStations[hw_order$StreamOrder == 1] <- 2
 hw_order$nStations[hw_order$StreamOrder == 2] <- 1
@@ -191,20 +198,20 @@ hw_order$nStations[hw_order$StreamOrder == 4] <- 15
 hw_order$nStations[hw_order$StreamOrder == 5] <- 14
 hw_order$nStations[hw_order$StreamOrder == 6] <- 25
 hw_order$nStations[hw_order$StreamOrder == 7] <- 37
-hw_order$nStations[hw_order$StreamOrder == 8] <- 25
+hw_order$nStations[hw_order$StreamOrder == 8] <- 26
 hw_order$nStations[hw_order$StreamOrder == 9] <- 6
 hw_order$Frequency = round(hw_order$SumEvents/hw_order$nStations, digits = 2)
 
-x1 <- as.data.frame(seq(from = 1996, to = 2020, by = 1))
-x2 <- as.data.frame(seq(from = 1996, to = 2020, by = 1))
-x3 <- as.data.frame(seq(from = 1996, to = 2020, by = 1))
-x4 <- as.data.frame(seq(from = 1996, to = 2020, by = 1))
-x5 <- as.data.frame(seq(from = 1996, to = 2020, by = 1))
-x6 <- as.data.frame(seq(from = 1996, to = 2020, by = 1))
-x7 <- as.data.frame(seq(from = 1996, to = 2020, by = 1))
-x8 <- as.data.frame(seq(from = 1996, to = 2020, by = 1))
-x9 <- as.data.frame(seq(from = 1996, to = 2020, by = 1))
-x10 <- as.data.frame(seq(from = 1996, to = 2020, by = 1))
+x1 <- as.data.frame(seq(from = 1996, to = 2021, by = 1))
+x2 <- as.data.frame(seq(from = 1996, to = 2021, by = 1))
+x3 <- as.data.frame(seq(from = 1996, to = 2021, by = 1))
+x4 <- as.data.frame(seq(from = 1996, to = 2021, by = 1))
+x5 <- as.data.frame(seq(from = 1996, to = 2021, by = 1))
+x6 <- as.data.frame(seq(from = 1996, to = 2021, by = 1))
+x7 <- as.data.frame(seq(from = 1996, to = 2021, by = 1))
+x8 <- as.data.frame(seq(from = 1996, to = 2021, by = 1))
+x9 <- as.data.frame(seq(from = 1996, to = 2021, by = 1))
+x10 <- as.data.frame(seq(from = 1996, to = 2021, by = 1))
 names(x1)[1] <- "Year"
 names(x2)[1] <- "Year"
 names(x3)[1] <- "Year"
@@ -229,15 +236,15 @@ region <- rbind(x1,x2,x3,x4,x5,x6,x7,x8,x9,x10)
 hw_region <- merge(hw_region, region, by = c("Year","Region"), all = TRUE)
 hw_region[is.na(hw_region)] <- 0
 
-x1 <- as.data.frame(seq(from = 1996, to = 2020, by = 1))
-x2 <- as.data.frame(seq(from = 1996, to = 2020, by = 1))
-x3 <- as.data.frame(seq(from = 1996, to = 2020, by = 1))
-x4 <- as.data.frame(seq(from = 1996, to = 2020, by = 1))
-x5 <- as.data.frame(seq(from = 1996, to = 2020, by = 1))
-x6 <- as.data.frame(seq(from = 1996, to = 2020, by = 1))
-x7 <- as.data.frame(seq(from = 1996, to = 2020, by = 1))
-x8 <- as.data.frame(seq(from = 1996, to = 2020, by = 1))
-x9 <- as.data.frame(seq(from = 1996, to = 2020, by = 1))
+x1 <- as.data.frame(seq(from = 1996, to = 2021, by = 1))
+x2 <- as.data.frame(seq(from = 1996, to = 2021, by = 1))
+x3 <- as.data.frame(seq(from = 1996, to = 2021, by = 1))
+x4 <- as.data.frame(seq(from = 1996, to = 2021, by = 1))
+x5 <- as.data.frame(seq(from = 1996, to = 2021, by = 1))
+x6 <- as.data.frame(seq(from = 1996, to = 2021, by = 1))
+x7 <- as.data.frame(seq(from = 1996, to = 2021, by = 1))
+x8 <- as.data.frame(seq(from = 1996, to = 2021, by = 1))
+x9 <- as.data.frame(seq(from = 1996, to = 2021, by = 1))
 names(x1)[1] <- "Year"
 names(x2)[1] <- "Year"
 names(x3)[1] <- "Year"
@@ -774,3 +781,7 @@ hw_MKSS_results <- left_join(hw_MKSS_results,fdr_table, by = c("TestType","Rank"
 hw_MKSS_results$SigTest <- ifelse(hw_MKSS_results$p.val < hw_MKSS_results$FDR_0.1,"Sig","NS")
 hw_MKSS_results_sig <- hw_MKSS_results[c(1:2,56:59,76),]
 View(hw_MKSS_results_sig)
+
+hw %>%
+  group_by(StreamOrder) %>%
+  summarise(q = mean(MeanResidaulQ, na.rm = TRUE))
