@@ -779,7 +779,7 @@ fdr_table[76:120,3] <- round((fdr_table$Rank[76:120]/45)*.1,4)
 hw_MKSS_results <- rbind(hw_time_output, hw_region_output, hw_season_output, hw_order_output)
 hw_MKSS_results <- left_join(hw_MKSS_results,fdr_table, by = c("TestType","Rank"))
 hw_MKSS_results$SigTest <- ifelse(hw_MKSS_results$p.val < hw_MKSS_results$FDR_0.1,"Sig","NS")
-hw_MKSS_results_sig <- hw_MKSS_results[c(1:2,56:59,76),]
+hw_MKSS_results_sig <- hw_MKSS_results[c(1:2,56:57,76:78),]
 View(hw_MKSS_results_sig)
 
 hw %>%
