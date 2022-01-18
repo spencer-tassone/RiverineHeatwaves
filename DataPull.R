@@ -42,12 +42,21 @@ dat_final_large <- readNWISdv(siteNumbers = full_station_list$site_no, # readNWI
 dat_final_large <- renameNWISColumns(dat_final_large)
 Wtemp_daily <- dat_final_large[,1:5]
 
+startDate <- as.Date("1996-01-01")
+endDate <- as.Date("2021-12-31")
+full_ts <- as.data.frame(rep(seq(from = startDate, to = endDate, by = "day"),times = 284))
+colnames(full_ts)[1] <- "Date"
+full_site <- as.data.frame(rep(unique(Wtemp_daily$site_no),times = 9497))
+colnames(full_site)[1] <- "site_no"
+site_ts <- cbind(full_ts, full_site)
+Wtemp_daily <- merge(site_ts, Wtemp_daily, by = c("site_no","Date"), all = TRUE)
+
 ### Determine how much Wtemp data is missing for each station
 missing_data <- Wtemp_daily %>%
   group_by(site_no) %>%
   summarise(Total_Wtemp_DataAvail = sum(!is.na(Wtemp)))
 
-missing_data$Frac_Wtemp_Avail <- round(missing_data$Total_Wtemp_DataAvail/9496,2) # There are 9,496 days between 12/31/2021 - 1/1/1996
+missing_data$Frac_Wtemp_Avail <- round(missing_data$Total_Wtemp_DataAvail/9497,2) # There are 9,497 days between 12/31/2021 - 1/1/1996
 
 threshold <- 0.75
 keep_sites_temp <- subset(missing_data, missing_data[,3] > threshold) # 132 stations
@@ -109,7 +118,7 @@ table(lat_long$STUSAB)
 nrow(table(lat_long$STUSAB))
 
 setwd("F:/School/USGSdata/GitHub")
-# write.csv(lat_long, 'UPDATE_119USGSsites_26YearWTemp_LatLong.csv')
+write.csv(lat_long, 'UPDATE_119USGSsites_26YearWTemp_LatLong.csv')
 
 ### Extract daily mean discharge (Q) from keep_sites_temp. Takes ~10-15 min to run.
 Q_daily_dat <- readNWISdv(siteNumbers = keep_sites_temp$site_no,
@@ -126,15 +135,46 @@ Q_daily_dat$flow_cms <- round(Q_daily_dat$Flow*0.0283168,2)
 Q_daily_dat <- Q_daily_dat[,c(1:3,6,5)]
 
 ### Determine how much Q data is missing for each station
+
+startDate <- as.Date("1996-01-01")
+endDate <- as.Date("2021-12-31")
+full_ts <- as.data.frame(rep(seq(from = startDate, to = endDate, by = "day"),times = 109))
+colnames(full_ts)[1] <- "Date"
+full_site <- as.data.frame(rep(unique(Q_daily_dat$site_no),times = 9497))
+colnames(full_site)[1] <- "site_no"
+site_ts <- cbind(full_ts, full_site)
+Q_daily_dat <- merge(site_ts, Q_daily_dat, by = c("site_no","Date"), all = TRUE)
+
 missing_data <- Q_daily_dat %>%
   group_by(site_no) %>%
   summarise(Total_Q_DataAvail = sum(!is.na(flow_cms)))
-missing_data$Frac_Wtemp_Avail <- round(missing_data$Total_Q_DataAvail/9496,2) # There are 9,496 days between 12/31/2021 - 1/1/1996
+missing_data$Frac_Wtemp_Avail <- round(missing_data$Total_Q_DataAvail/9497,2) # There are 9,497 days between 12/31/2021 - 1/1/1996
 
 threshold <- 0.75
 keep_sites_Q <- subset(missing_data, missing_data[,3] > threshold) # 104 stations
 
 Q_daily_dat <- Q_daily_dat[Q_daily_dat$site_no %in% keep_sites_Q$site_no,]
 
+station_list <-  full_station_list[(full_station_list$site_no %in% Wtemp_daily_dat$site_no),]
+station_list <- station_list[,c(1:3,5:12)]
+station_list$altitude_ft <- station_list$alt_va
+station_list$altitude_ft <- as.numeric(station_list$altitude_ft)
+station_list$altitude_ft_NAVD88 <- ifelse(station_list$alt_datum_cd == "NGVD29",
+                                  station_list$altitude_ft + 3.6, ### see USGS report https://pubs.usgs.gov/sir/2010/5040/section.html 
+                                  station_list$altitude_ft)
+station_list$altitude_m_NAVD88 <- round(station_list$altitude_ft_NAVD88 * 0.3048, digits = 2) ### convert feet to meters
+
+station_details <- read.csv('Station_Details.csv')
+station_details$site_no <- as.character(station_details$site_no)
+station_details <- station_details %>%
+  mutate(site_no = ifelse(row_number()<=86, paste0("0", site_no), site_no))
+station_details[132,2] <- "420451121510000"
+station_details$DrainageArea_km2 <- station_details$DrainageArea_mi2 * 2.59
+
+station_details <- station_details[station_details$site_no %in% station_list$site_no,]
+station_details <- merge(station_details, station_list, by = "site_no")
+station_details <- station_details[,c(25,1,3,4,8:23,36)]
+
+write.csv(station_details, 'station_details_corrected.csv')
 write.csv(Wtemp_daily_dat,'Wtemp_daily_dat.csv')
 write.csv(Q_daily_dat,'Q_daily_dat.csv')
