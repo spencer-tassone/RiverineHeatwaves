@@ -312,5 +312,5 @@ Q_daily_dat <- Q_daily_dat[Q_daily_dat$site_no %in% keep_sites_Q$site_no,]
 
 setwd("F:/School/USGSdata/GitHub")
 write.csv(station_details, 'station_details_corrected.csv')
-write.csv(Wtemp_daily,'Wtemp_daily_dat.csv')
+write.csv(wmet,'Wtemp_daily_dat.csv')
 write.csv(Q_daily_dat,'Q_daily_dat.csv')
