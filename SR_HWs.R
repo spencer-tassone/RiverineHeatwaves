@@ -22,7 +22,7 @@ head(which(Wtemp_daily_dat$site_no == "10301500", arr.ind=TRUE)) # take 1 minus 
 Wtemp_daily_dat <- Wtemp_daily_dat %>%
   mutate(site_no = ifelse(row_number()<=427050, paste0("0", site_no), site_no))
 
-station_details <- read.csv('70station_details.csv')
+station_details <- read.csv('70station_details.csv') # be sure to remove the first column in the csv prior to importing
 station_details$site_no <- as.character(station_details$site_no)
 head(which(station_details$site_no == "10301500", arr.ind=TRUE)) # take 1 minus the smallest number and put into next line of code
 station_details <- station_details %>%
@@ -117,82 +117,82 @@ sum(Q_trends$p.val <= 0.05 & Q_trends$Q_slope > 0)
 
 # write.csv(Q_trends, 'Discharge_LongTermTrends.csv')
 
-top9_sites <- wtemp_trends %>%
-  arrange(desc(wtemp_slope)) %>%
-  slice_head(n = 9)
-top9_sites <- merge(top9_sites, station_details, by = "site_no")
-four_sites <- wtemp_trends[wtemp_trends$site_no %in% c("07311782","02160700","0422026250","01388000"),]
-four_sites <- merge(four_sites, station_details, by = "site_no")
-four_dat <- annual_mean_wtemp[annual_mean_wtemp$site_no %in% four_sites$site_no,]
-four_dat <- merge(four_dat, station_details, by = "site_no")
-
-ylab = "Annual Mean Water Temp. (°C)"
-wrapper <- function(x, ...) paste(strwrap(x, ...), collapse = "\n")
-my_label <- "S. Wichita River at Low Flow Dam near Guthrie, TX"
-Fig1a <- ggplot(data = four_dat[four_dat$site_no == "07311782",], aes(x = Year, y = annual_mean_wtemp)) +
-  geom_point() +
-  stat_smooth(method = 'lm', formula = y~x) +
-  scale_y_continuous(breaks = seq(0, 22, 2), limits = c(0, 22)) +
-  labs(x = "Year",
-       y = ylab) +
-  annotate("text", x = 2009, y = 0, label = "p-value = 0.001", size = 5) +
-  annotate("text", x = 2009, y = 2, label = "Sen's slope = 0.043", size = 5) +
-  annotate("text", x = 2009, y = 5, label = wrapper(my_label, width = 35), size = 5) +
-  theme_bw() +
-  theme(panel.grid = element_blank(),
-        text = element_text(size = 16),
-        axis.text.x = element_text(size = 16, color = "white"),
-        axis.title.x = element_blank(),
-        axis.text.y = element_text(size = 16, color = "black"))
-
-Fig1b <- ggplot(data = four_dat[four_dat$site_no == "02160700",], aes(x = Year, y = annual_mean_wtemp)) +
-  geom_point() +
-  stat_smooth(method = 'lm', formula = y~x) +
-  scale_y_continuous(breaks = seq(0, 22, 2), limits = c(0, 22)) +
-  labs(x = "Year",
-       y = ylab) +
-  annotate("text", x = 2009, y = 0, label = "p-value < 0.000", size = 5) +
-  annotate("text", x = 2009, y = 2, label = "Sen's slope = 0.062", size = 5) +
-  annotate("text", x = 2009, y = 4, label = "Enoree River at Whitmire, SC", size = 5) +
-  theme_bw() +
-  theme(panel.grid = element_blank(),
-        text = element_text(size = 16),
-        axis.text.x = element_text(size = 16, color = "white"),
-        axis.title = element_blank(),
-        axis.text.y = element_text(size = 16, color = "white"))
-
-Fig1c <- ggplot(data = four_dat[four_dat$site_no == "0422026250",], aes(x = Year, y = annual_mean_wtemp)) +
-  geom_point() +
-  stat_smooth(method = 'lm', formula = y~x) +
-  scale_y_continuous(breaks = seq(0, 22, 2), limits = c(0, 22)) +
-  labs(x = "Year",
-       y = ylab) +
-  annotate("text", x = 2009, y = 0, label = "p-value = 0.017", size = 5) +
-  annotate("text", x = 2009, y = 2, label = "Sen's slope = 0.041", size = 5) +
-  annotate("text", x = 2009, y = 4, label = "Northrup Creek at North Greece, NY", size = 5) +
-  theme_bw() +
-  theme(panel.grid = element_blank(),
-        text = element_text(size = 16),
-        axis.text.x = element_text(size = 16, color = "black"),
-        axis.text.y = element_text(size = 16, color = "black"))
-
-Fig1d <- ggplot(data = four_dat[four_dat$site_no == "01388000",], aes(x = Year, y = annual_mean_wtemp)) +
-  geom_point() +
-  stat_smooth(method = 'lm', formula = y~x) +
-  scale_y_continuous(breaks = seq(0, 20, 2), limits = c(0, 20)) +
-  labs(x = "Year",
-       y = ylab) +
-  annotate("text", x = 2009, y = 0, label = "p-value = 0.015", size = 5) +
-  annotate("text", x = 2009, y = 2, label = "Sen's slope = 0.041", size = 5) +
-  annotate("text", x = 2009, y = 4, label = "Ramapo River at Pompton Lakes, NJ", size = 5) +
-  theme_bw() +
-  theme(panel.grid = element_blank(),
-        text = element_text(size = 16),
-        axis.text.x = element_text(size = 16, color = "black"),
-        axis.text.y = element_text(size = 16, color = "white"),
-        axis.title.y = element_blank())
-
-ggarrange(Fig1a,Fig1b,Fig1c,Fig1d, ncol = 2, nrow = 2)
+# top9_sites <- wtemp_trends %>%
+#   arrange(desc(wtemp_slope)) %>%
+#   slice_head(n = 9)
+# top9_sites <- merge(top9_sites, station_details, by = "site_no")
+# four_sites <- wtemp_trends[wtemp_trends$site_no %in% c("07311782","02160700","0422026250","01388000"),]
+# four_sites <- merge(four_sites, station_details, by = "site_no")
+# four_dat <- annual_mean_wtemp[annual_mean_wtemp$site_no %in% four_sites$site_no,]
+# four_dat <- merge(four_dat, station_details, by = "site_no")
+# 
+# ylab = "Annual Mean Water Temp. (°C)"
+# wrapper <- function(x, ...) paste(strwrap(x, ...), collapse = "\n")
+# my_label <- "S. Wichita River at Low Flow Dam near Guthrie, TX"
+# Fig1a <- ggplot(data = four_dat[four_dat$site_no == "07311782",], aes(x = Year, y = annual_mean_wtemp)) +
+#   geom_point() +
+#   stat_smooth(method = 'lm', formula = y~x) +
+#   scale_y_continuous(breaks = seq(0, 22, 2), limits = c(0, 22)) +
+#   labs(x = "Year",
+#        y = ylab) +
+#   annotate("text", x = 2009, y = 0, label = "p-value = 0.001", size = 5) +
+#   annotate("text", x = 2009, y = 2, label = "Sen's slope = 0.043", size = 5) +
+#   annotate("text", x = 2009, y = 5, label = wrapper(my_label, width = 35), size = 5) +
+#   theme_bw() +
+#   theme(panel.grid = element_blank(),
+#         text = element_text(size = 16),
+#         axis.text.x = element_text(size = 16, color = "white"),
+#         axis.title.x = element_blank(),
+#         axis.text.y = element_text(size = 16, color = "black"))
+# 
+# Fig1b <- ggplot(data = four_dat[four_dat$site_no == "02160700",], aes(x = Year, y = annual_mean_wtemp)) +
+#   geom_point() +
+#   stat_smooth(method = 'lm', formula = y~x) +
+#   scale_y_continuous(breaks = seq(0, 22, 2), limits = c(0, 22)) +
+#   labs(x = "Year",
+#        y = ylab) +
+#   annotate("text", x = 2009, y = 0, label = "p-value < 0.000", size = 5) +
+#   annotate("text", x = 2009, y = 2, label = "Sen's slope = 0.062", size = 5) +
+#   annotate("text", x = 2009, y = 4, label = "Enoree River at Whitmire, SC", size = 5) +
+#   theme_bw() +
+#   theme(panel.grid = element_blank(),
+#         text = element_text(size = 16),
+#         axis.text.x = element_text(size = 16, color = "white"),
+#         axis.title = element_blank(),
+#         axis.text.y = element_text(size = 16, color = "white"))
+# 
+# Fig1c <- ggplot(data = four_dat[four_dat$site_no == "0422026250",], aes(x = Year, y = annual_mean_wtemp)) +
+#   geom_point() +
+#   stat_smooth(method = 'lm', formula = y~x) +
+#   scale_y_continuous(breaks = seq(0, 22, 2), limits = c(0, 22)) +
+#   labs(x = "Year",
+#        y = ylab) +
+#   annotate("text", x = 2009, y = 0, label = "p-value = 0.017", size = 5) +
+#   annotate("text", x = 2009, y = 2, label = "Sen's slope = 0.041", size = 5) +
+#   annotate("text", x = 2009, y = 4, label = "Northrup Creek at North Greece, NY", size = 5) +
+#   theme_bw() +
+#   theme(panel.grid = element_blank(),
+#         text = element_text(size = 16),
+#         axis.text.x = element_text(size = 16, color = "black"),
+#         axis.text.y = element_text(size = 16, color = "black"))
+# 
+# Fig1d <- ggplot(data = four_dat[four_dat$site_no == "01388000",], aes(x = Year, y = annual_mean_wtemp)) +
+#   geom_point() +
+#   stat_smooth(method = 'lm', formula = y~x) +
+#   scale_y_continuous(breaks = seq(0, 20, 2), limits = c(0, 20)) +
+#   labs(x = "Year",
+#        y = ylab) +
+#   annotate("text", x = 2009, y = 0, label = "p-value = 0.015", size = 5) +
+#   annotate("text", x = 2009, y = 2, label = "Sen's slope = 0.041", size = 5) +
+#   annotate("text", x = 2009, y = 4, label = "Ramapo River at Pompton Lakes, NJ", size = 5) +
+#   theme_bw() +
+#   theme(panel.grid = element_blank(),
+#         text = element_text(size = 16),
+#         axis.text.x = element_text(size = 16, color = "black"),
+#         axis.text.y = element_text(size = 16, color = "white"),
+#         axis.title.y = element_blank())
+# 
+# ggarrange(Fig1a,Fig1b,Fig1c,Fig1d, ncol = 2, nrow = 2)
 
 trends_wtemp_Q <- merge(wtemp_trends,Q_trends, by = "site_no", all = TRUE)
 test1 <- wtemp_trends[wtemp_trends$p.val <= 0.05,]
@@ -235,13 +235,13 @@ for(i in 1:length(zz)){
   }
 }
 
-NROW(saveDatWarm)
-round(mean(saveDatWarm$duration))
-max(saveDatWarm$duration)
-round(mean(saveDatWarm$intensity_max_relThresh),digits = 1)
-round(max(saveDatWarm$intensity_max_relThresh),digits = 1)
-round(mean(saveDatWarm$intensity_max),digits = 1)
-round(max(saveDatWarm$intensity_max),digits = 1)
+NROW(saveDatWarm) # 3,984 events
+round(mean(saveDatWarm$duration)) # 9 days
+max(saveDatWarm$duration) # 103 days
+round(mean(saveDatWarm$intensity_max_relThresh),digits = 1) # 1.7 degrees C
+round(max(saveDatWarm$intensity_max_relThresh),digits = 1) # 9.0 degrees C
+round(mean(saveDatWarm$intensity_max),digits = 1) # 3.8 degrees C
+round(max(saveDatWarm$intensity_max),digits = 1) # 12.7 degrees C
 
 ### Count number of HW and CS events per station
 
@@ -297,8 +297,8 @@ ggplot(data = hw_cs_site, aes(x = log10(DrainageArea_km2), y = TotalEvents_HW)) 
 
 hw_cs_site %>%
   group_by(Reservoir) %>%
-  summarise(Median = median(TotalEvents_HW),
-            SD = round(sd(TotalEvents_HW)),
+  summarise(Median = round(median(TotalEvents_HW)),
+            SD = round(round(sd(TotalEvents_HW))),
             n = n())
 
 usa_region <- data.frame(matrix(ncol = 2, nrow = 50))
@@ -348,8 +348,8 @@ ggplot(data = trends_wtemp_Q, aes(x = Q_slope, y = wtemp_slope)) +
         axis.text.x = element_text(size = 16, color = "black"),
         axis.text.y = element_text(size = 16, color = "black"),
         legend.title.align = 0.5,
-        legend.position = c(0.2,0.3))
-
+        legend.position = c(0.2,0.2)) +
+  guides(fill=guide_legend(ncol=2))
 
 hw_cs_site <- left_join(hw_cs_site, usa_region, by = 'STUSAB')
 
@@ -670,7 +670,7 @@ hw %>%
   summarise(count = n_distinct(site_no))
 
 hw_reservoir$nStations[hw_reservoir$Reservoir == 'Above'] <- 11
-hw_reservoir$nStations[hw_reservoir$Reservoir == 'Below'] <- 45
+hw_reservoir$nStations[hw_reservoir$Reservoir == 'Below'] <- 15
 hw_reservoir$nStations[hw_reservoir$Reservoir == 'None'] <- 44
 hw_reservoir$Frequency = round(hw_reservoir$SumEvents/hw_reservoir$nStations, digits = 2)
 
@@ -1312,7 +1312,7 @@ hw_MKSS_results <- left_join(hw_MKSS_results,fdr_table, by = c("TestType","Rank"
 hw_MKSS_results$SigTest <- ifelse(hw_MKSS_results$p.val < hw_MKSS_results$FDR_0.1,"Sig","NS")
 hw_MKSS_results_sig <- hw_MKSS_results[c(1:2,51:52,71:78,111:115),]
 View(hw_MKSS_results_sig)
-# write.csv(hw_MKSS_results_sig, '70sites_MKSS_results.csv')
+# write.csv(hw_MKSS_results_sig, '70sites_MKSS_results2.csv')
 
 hw_meanResidQ <- hw %>%
   group_by(StreamOrder) %>%
@@ -1344,7 +1344,12 @@ hw_sum_cat <- merge(hw_sum_cat, fillout, by = c("year","category"), all = TRUE)
 hw_cat_total <- cbind(hw_sum_cat, hw_temp_fill)
 hw_cat_total <- hw_cat_total[,c(1:3,6)]
 
-Fig7a <- ggplot(data = hw_cat_total) +
+hw_cat_total %>%
+  group_by(category) %>%
+  summarise(TotalEvents = sum(TotalEvents_HW),
+            FracTotEvents = round(((TotalEvents/3985)*100),digits = 2))
+
+Fig3a <- ggplot(data = hw_cat_total) +
   geom_col(aes(x = as.numeric(year), y = TotalEvents_HW,
                fill = fct_rev(as_factor(category))), color = "black",
            width = 1) +
@@ -1392,17 +1397,17 @@ hw_sum2 <- hw_sum %>%
 hw_sum_lm <- lm(hw_sum2$MeanAnnualTotalDuration~hw_sum2$year)
 summary(hw_sum_lm)
 
-Fig7b <- ggplot(data = hw_sum2, aes(x = year, y = MeanAnnualTotalDuration)) +
+Fig3b <- ggplot(data = hw_sum2, aes(x = year, y = MeanAnnualTotalDuration)) +
   geom_smooth(method = "lm", formula = y~x, color = "black", size = 0.5, se = TRUE) +
   geom_point(shape = 21, size = 2, color = "black", fill = "white", stroke = 1) +
   xlab("Year") +
   scale_x_continuous(breaks = seq(1996, 2021, 4)) +
   scale_y_continuous(breaks = seq(0, 60, 5), limits = c(0,60)) +
   ylab("Avg. Total HW Days") +
-  annotate("text", x = 1998.5, y = 55, label = "y = 0.64x - 1262", size = 5, hjust = 0.23) +
-  annotate("text", x = 1996.75, y = 50,
+  annotate("text", x = 1998.4, y = 60, label = "y = 0.64x - 1262", size = 5, hjust = 0.23) +
+  annotate("text", x = 1996.75, y = 54,
            label = "paste(R ^ 2, \" = 0.23\")", parse = TRUE, size = 5, hjust = 0) +
-  annotate("text", x = 1996.75, y = 45, label = "p-value = 0.013", size = 5, hjust = 0) +
+  annotate("text", x = 1996.75, y = 48, label = "p-value = 0.013", size = 5, hjust = 0) +
   annotate("text", x = 2019.5, y = 55, label = "(b", size = 6, hjust = 0) +
   theme_bw() +
   theme(panel.grid = element_blank(),
@@ -1411,7 +1416,7 @@ Fig7b <- ggplot(data = hw_sum2, aes(x = year, y = MeanAnnualTotalDuration)) +
         axis.text.y = element_text(size = 16, color = "black"))
 
 # width = 600 height = 800
-ggarrange(Fig7a,Fig7b, ncol = 1)
+ggarrange(Fig3a,Fig3b, ncol = 1)
 
 residualQ$year <- year(residualQ$Date)
 annualQ <- residualQ %>%
@@ -1422,6 +1427,9 @@ annualHW <- hw %>%
   count(Year, sort = FALSE) %>%
   arrange(-desc(site_no))
 annualHW$n <- ifelse(is.na(annualHW$n),0,annualHW$n)
+longtermQ <- residualQ %>%
+  group_by(site_no) %>%
+  summarise(LongTermMeanQ = round(mean(flow_cms, na.rm = TRUE),1))
 
 x1 <- as.data.frame(rep(seq(from = 1996, to = 2021, by = 1), times = 70)) # 70 stations
 x2 <- as.data.frame(rep(unique(hw$site_no),times = 26)) # 26 years
@@ -1434,9 +1442,80 @@ names(annualHW)[2] <- "year"
 hw_q <- merge(annualQ, annualHW, by = c("site_no","year"), all = TRUE)
 colnames(hw_q)[4] <- "TotalEvents_HW"
 hw_q$TotalEvents_HW <- ifelse(is.na(hw_q$TotalEvents_HW),0,hw_q$TotalEvents_HW)
+hw_q <- merge(hw_q, longtermQ, by = "site_no")
+hw_q$NormalizedAnnualMeanQ <- round(((hw_q$AnnualMeanQ-hw_q$LongTermMeanQ)/hw_q$LongTermMeanQ)*100,digits = 1)
+
+test <- hw_q
+test2 <- merge(hw_q, hw_cs_site, by = "site_no")
+
+library(ggridges)
+
+ggplot(test2, aes(x = NormalizedAnnualMeanQ, y = Region, fill = Region)) +
+  geom_density_ridges(scale = 3, rel_min_height = 0.01) +
+  scale_fill_manual(values = cols3) +
+  geom_vline(xintercept = 0, linetype = "longdash") +
+  labs(y = "Region",
+       x = "Normalized Annual Q (%)") +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        text = element_text(size = 16),
+        axis.text.x = element_text(size = 16, color = "black"),
+        axis.text.y = element_text(size = 16, color = "black"),
+        legend.position = "none",
+        legend.title = element_blank())
+
+fig_totHW <- ggplot(test2, aes(x = TotalEvents_HW.x, y = Region, fill = Region, height = ..density..)) +
+  geom_density_ridges(scale = 3, rel_min_height = 0.01,
+                      stat = "density", trim = TRUE) +
+  scale_fill_manual(values = cols3) +
+  scale_x_continuous(breaks = seq(0,12,1), limits = c(0,12)) +
+  labs(y = "Region",
+       x = "Annual Total HW Events") +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        text = element_text(size = 16),
+        axis.text.x = element_text(size = 16, color = "black"),
+        axis.text.y = element_text(size = 16, color = "black"),
+        legend.position = "none",
+        legend.title = element_blank())
+
+fig_durHW <- ggplot(hw, aes(x = duration, y = Region, fill = Region, height = ..density..)) +
+  geom_density_ridges(scale = 3, rel_min_height = 0.0005,
+                      stat = "density", trim = TRUE) +
+  scale_fill_manual(values = cols3) +
+  scale_x_continuous(breaks = seq(5,105,10), limits = c(5,105)) +
+  labs(y = "Region",
+       x = "HW Duration (days)") +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        text = element_text(size = 16),
+        axis.text.x = element_text(size = 16, color = "black"),
+        axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        legend.position = "none",
+        legend.title = element_blank())
+
+fig_intHW <- ggplot(hw, aes(x = intensity_max_relThresh, y = Region, fill = Region, height = ..density..)) +
+  geom_density_ridges(scale = 3, rel_min_height = 0.0005,
+                      stat = "density", trim = TRUE) +
+  scale_fill_manual(values = cols3) +
+  scale_x_continuous(breaks = seq(0,10,1), limits = c(0,10)) +
+  ylab("Region") +
+  xlab(expression(HW~Max~Intensity~(degree*C))) +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        text = element_text(size = 16),
+        axis.text.x = element_text(size = 16, color = "black"),
+        axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        legend.position = "none",
+        legend.title = element_blank())
+
+# width = 1200, height = 500
+ggarrange(fig_totHW,fig_durHW,fig_intHW, nrow = 1, align = 'h', widths = c(1.2,1,1))
 
 # width = 750 height = 550
-ggplot(data = hw_q, aes(x = AnnualMeanQ, y = TotalEvents_HW)) + 
+fig5 <- ggplot(data = hw_q, aes(x = AnnualMeanQ, y = TotalEvents_HW)) +
   geom_point(shape = 21, size = 2, color = "black", fill = "black", stroke = 1, alpha = 0.4) +
   scale_x_continuous(breaks = seq(0, 1500, 100), limits = c(0,1500)) +
   scale_y_continuous(breaks = seq(0, 12, 1), limits = c(0,12)) +
@@ -1449,3 +1528,20 @@ ggplot(data = hw_q, aes(x = AnnualMeanQ, y = TotalEvents_HW)) +
         axis.text.y = element_text(size = 16, color = "black"),
         legend.position = "none",
         legend.title = element_blank())
+
+dens1 <- ggplot(hw_q, aes(x = AnnualMeanQ)) +
+  geom_density() +
+  theme_void() +
+  theme(legend.position = "none")
+dens2 <- ggplot(hw_q, aes(x = TotalEvents_HW)) +
+  geom_density(adjust = 2) +
+  theme_void() +
+  theme(legend.position = "none") +
+  coord_flip()
+
+library(ggpubr)
+library(patchwork)
+
+dens1 + plot_spacer() + fig5 + dens2 +
+  plot_layout(ncol = 2, nrow = 2, widths = c(5,1), heights = c(1,5))
+
