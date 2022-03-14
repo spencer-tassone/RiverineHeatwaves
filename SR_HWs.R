@@ -108,98 +108,18 @@ for(i in 1:length(zz)){
 View(wtemp_trends)
 View(Q_trends)
 
-sum(wtemp_trends$wtemp_slope > 0)
-sum(wtemp_trends$p.val <= 0.05)
-sum(wtemp_trends$p.val <= 0.05 & wtemp_trends$wtemp_slope > 0 )
-sum(Q_trends$Q_slope > 0)
-sum(Q_trends$p.val <= 0.05)
-sum(Q_trends$p.val <= 0.05 & Q_trends$Q_slope > 0)
-
-# write.csv(Q_trends, 'Discharge_LongTermTrends.csv')
-
-# top9_sites <- wtemp_trends %>%
-#   arrange(desc(wtemp_slope)) %>%
-#   slice_head(n = 9)
-# top9_sites <- merge(top9_sites, station_details, by = "site_no")
-# four_sites <- wtemp_trends[wtemp_trends$site_no %in% c("07311782","02160700","0422026250","01388000"),]
-# four_sites <- merge(four_sites, station_details, by = "site_no")
-# four_dat <- annual_mean_wtemp[annual_mean_wtemp$site_no %in% four_sites$site_no,]
-# four_dat <- merge(four_dat, station_details, by = "site_no")
-# 
-# ylab = "Annual Mean Water Temp. (°C)"
-# wrapper <- function(x, ...) paste(strwrap(x, ...), collapse = "\n")
-# my_label <- "S. Wichita River at Low Flow Dam near Guthrie, TX"
-# Fig1a <- ggplot(data = four_dat[four_dat$site_no == "07311782",], aes(x = Year, y = annual_mean_wtemp)) +
-#   geom_point() +
-#   stat_smooth(method = 'lm', formula = y~x) +
-#   scale_y_continuous(breaks = seq(0, 22, 2), limits = c(0, 22)) +
-#   labs(x = "Year",
-#        y = ylab) +
-#   annotate("text", x = 2009, y = 0, label = "p-value = 0.001", size = 5) +
-#   annotate("text", x = 2009, y = 2, label = "Sen's slope = 0.043", size = 5) +
-#   annotate("text", x = 2009, y = 5, label = wrapper(my_label, width = 35), size = 5) +
-#   theme_bw() +
-#   theme(panel.grid = element_blank(),
-#         text = element_text(size = 16),
-#         axis.text.x = element_text(size = 16, color = "white"),
-#         axis.title.x = element_blank(),
-#         axis.text.y = element_text(size = 16, color = "black"))
-# 
-# Fig1b <- ggplot(data = four_dat[four_dat$site_no == "02160700",], aes(x = Year, y = annual_mean_wtemp)) +
-#   geom_point() +
-#   stat_smooth(method = 'lm', formula = y~x) +
-#   scale_y_continuous(breaks = seq(0, 22, 2), limits = c(0, 22)) +
-#   labs(x = "Year",
-#        y = ylab) +
-#   annotate("text", x = 2009, y = 0, label = "p-value < 0.000", size = 5) +
-#   annotate("text", x = 2009, y = 2, label = "Sen's slope = 0.062", size = 5) +
-#   annotate("text", x = 2009, y = 4, label = "Enoree River at Whitmire, SC", size = 5) +
-#   theme_bw() +
-#   theme(panel.grid = element_blank(),
-#         text = element_text(size = 16),
-#         axis.text.x = element_text(size = 16, color = "white"),
-#         axis.title = element_blank(),
-#         axis.text.y = element_text(size = 16, color = "white"))
-# 
-# Fig1c <- ggplot(data = four_dat[four_dat$site_no == "0422026250",], aes(x = Year, y = annual_mean_wtemp)) +
-#   geom_point() +
-#   stat_smooth(method = 'lm', formula = y~x) +
-#   scale_y_continuous(breaks = seq(0, 22, 2), limits = c(0, 22)) +
-#   labs(x = "Year",
-#        y = ylab) +
-#   annotate("text", x = 2009, y = 0, label = "p-value = 0.017", size = 5) +
-#   annotate("text", x = 2009, y = 2, label = "Sen's slope = 0.041", size = 5) +
-#   annotate("text", x = 2009, y = 4, label = "Northrup Creek at North Greece, NY", size = 5) +
-#   theme_bw() +
-#   theme(panel.grid = element_blank(),
-#         text = element_text(size = 16),
-#         axis.text.x = element_text(size = 16, color = "black"),
-#         axis.text.y = element_text(size = 16, color = "black"))
-# 
-# Fig1d <- ggplot(data = four_dat[four_dat$site_no == "01388000",], aes(x = Year, y = annual_mean_wtemp)) +
-#   geom_point() +
-#   stat_smooth(method = 'lm', formula = y~x) +
-#   scale_y_continuous(breaks = seq(0, 20, 2), limits = c(0, 20)) +
-#   labs(x = "Year",
-#        y = ylab) +
-#   annotate("text", x = 2009, y = 0, label = "p-value = 0.015", size = 5) +
-#   annotate("text", x = 2009, y = 2, label = "Sen's slope = 0.041", size = 5) +
-#   annotate("text", x = 2009, y = 4, label = "Ramapo River at Pompton Lakes, NJ", size = 5) +
-#   theme_bw() +
-#   theme(panel.grid = element_blank(),
-#         text = element_text(size = 16),
-#         axis.text.x = element_text(size = 16, color = "black"),
-#         axis.text.y = element_text(size = 16, color = "white"),
-#         axis.title.y = element_blank())
-# 
-# ggarrange(Fig1a,Fig1b,Fig1c,Fig1d, ncol = 2, nrow = 2)
+sum(wtemp_trends$wtemp_slope > 0) # 65
+sum(wtemp_trends$p.val <= 0.05) # 20
+sum(wtemp_trends$p.val <= 0.05 & wtemp_trends$wtemp_slope > 0 ) # 19
+sum(Q_trends$Q_slope > 0) # 26
+sum(Q_trends$p.val <= 0.05) # 10
+sum(Q_trends$p.val <= 0.05 & Q_trends$Q_slope > 0) # 3
 
 trends_wtemp_Q <- merge(wtemp_trends,Q_trends, by = "site_no", all = TRUE)
 test1 <- wtemp_trends[wtemp_trends$p.val <= 0.05,]
 test2 <- merge(test1, Q_trends, by = "site_no")
 trends_wtemp_Q <- merge(trends_wtemp_Q, station_details, by = "site_no")
 trends_wtemp_Q$Q_yes_no <- ifelse(is.na(trends_wtemp_Q$Q_slope),"no", "yes")
-# write.csv(trends_wtemp_Q, "70station_details.csv")
 
 ### Run HW & CS analysis
 
@@ -387,27 +307,42 @@ ggplot(data = hw_cs_site, aes(x = factor(StreamOrder), y = TotalEvents_HW)) +
 
 hw_anova <- aov(TotalEvents_HW~Region, data = hw_cs_site)
 summary(hw_anova)
-TukeyHSD(hw_anova)
+hw_anova_region <- TukeyHSD(hw_anova)
+hw_anova_region <- as.data.frame(hw_anova_region$Region)
+hw_anova_region[hw_anova_region$`p adj` < 0.05,]
 
-hw_cs_site %>%
-  mutate(Region = factor(Region, levels = c("Alaska", "NW","West","WNC","SW","ENC","Central","South","NE",'SE'))) %>%
-  ggplot(aes(x = Region, y = TotalEvents_HW)) +
-  geom_boxplot(outlier.shape = NA) +
+library(dplyr)
+library(rstatix)
+library(ggpubr)
+
+test <- hw_cs_site
+test$Region <- as.factor(test$Region)
+hw_region.aov <- test %>% anova_test(TotalEvents_HW ~ Region)
+hw_region.tukey <- test %>% tukey_hsd(TotalEvents_HW ~ Region)
+hw_region.tukey <- hw_region.tukey %>% add_xy_position(x = "Region")
+
+# width = 700 height = 550
+ggboxplot(test, x = "Region", y = "TotalEvents_HW", outlier.shape = NA) +
+  stat_pvalue_manual(hw_region.tukey, hide.ns = TRUE, y.position = c(90,85,80),
+                     label = "p = {scales::pvalue(p.adj)}", digits = 3) +
   geom_jitter(shape=16, alpha = 0.4, size = 2, position=position_jitter(0.1)) +
-  labs(x = 'Region',
-       y = 'Total HW Events (1996-2021)') +
-  scale_y_continuous(breaks = seq(0,80,10)) +
-  coord_cartesian(ylim = c(0, 80)) +
+  labs(subtitle = get_test_label(hw_region.aov, detailed = T)) +
+  scale_y_continuous(breaks = seq(0,80,10), limits = c(0,90)) +
+  xlab("Region") +
+  ylab("Total HW Events (1996-2021)") +
   theme_bw() +
   theme(panel.grid = element_blank(),
-        text = element_text(size = 16, color = "black"),
+        plot.subtitle = element_text(vjust = -105, hjust = 0.05),
+        text = element_text(size = 14),
         axis.text.x = element_text(size = 16, color = "black"),
-        axis.text.y = element_text(size = 16, color = 'black'))
+        axis.text.y = element_text(size = 16, color = "black"))
 
 hw_cs_site %>%
   group_by(Region) %>%
   summarise(MedianTotEvents = round(median(TotalEvents_HW)),
-            SD = round(sd(TotalEvents_HW)))
+            SD = round(sd(TotalEvents_HW)),
+            max = max(TotalEvents_HW),
+            min = min(TotalEvents_HW))
 
 ###
 
@@ -453,7 +388,7 @@ hw_anova <- aov(intensity_cumulative_relThresh~factor(Month), data = hw)
 summary(hw_anova)
 TukeyHSD(hw_anova)
 
-intensity_fig <- hw %>%
+hw %>%
   mutate(Month = factor(Month, levels = c("1","2","3","4","5","6","7","8","9","10",'11',"12"))) %>%
   ggplot(aes(x = Month, y = intensity_cumulative_relThresh)) +
   geom_boxplot(position = "dodge", color = "black", outlier.shape = NA) +
@@ -464,46 +399,9 @@ intensity_fig <- hw %>%
   theme_bw() +
   theme(panel.grid = element_blank(),
         text = element_text(size = 16, color = "black"),
-        axis.title.x = element_blank(),
-        axis.text.x = element_text(size = 16, color = "white"),
-        axis.text.y = element_text(size = 16, color = 'black'),
-        legend.background = element_blank())
-
-onset_fig <- hw %>%
-  mutate(Month = factor(Month, levels = c("1","2","3","4","5","6","7","8","9","10",'11',"12"))) %>%
-  ggplot(aes(x = Month, y = rate_onset)) +
-  geom_boxplot(position = "dodge", color = "black", outlier.shape = NA) +
-  ylab(expression(Onset~Rate~(degree*C~day^-1))) +
-  xlab("Month") +
-  scale_fill_manual(values = cols) +
-  scale_y_continuous(breaks = seq(0,2.0,0.25)) +
-  coord_cartesian(ylim = c(0, 2.0)) +
-  theme_bw() +
-  theme(panel.grid = element_blank(),
-        text = element_text(size = 16, color = "black"),
-        axis.title.x = element_blank(),
-        axis.text.x = element_text(size = 16, color = "white"),
-        axis.text.y = element_text(size = 16, color = 'black'),
-        legend.position = 'none')
-
-decline_fig <- hw %>%
-  mutate(Month = factor(Month, levels = c("1","2","3","4","5","6","7","8","9","10",'11',"12"))) %>%
-  ggplot(aes(x = Month, y = rate_decline)) +
-  geom_boxplot(position = "dodge", color = "black", outlier.shape = NA) +
-  ylab(expression(Decline~Rate~(degree*C~day^-1))) +
-  xlab("Month") +
-  scale_fill_manual(values = cols) +
-  scale_y_continuous(breaks = seq(0,2.25,0.25)) +
-  coord_cartesian(ylim = c(0, 2.25)) +
-  theme_bw() +
-  theme(panel.grid = element_blank(),
-        text = element_text(size = 16, color = "black"),
         axis.text.x = element_text(size = 16, color = "black"),
         axis.text.y = element_text(size = 16, color = 'black'),
-        legend.position = 'none')
-
-# width = 850 height = 1200
-ggarrange(intensity_fig, onset_fig, decline_fig, ncol = 1, align = 'v')
+        legend.background = element_blank())
 
 ### Mean residual Q (cms) during heatwave & coldspell events
 
@@ -513,71 +411,41 @@ hw$MeanResidaulQ <- mapply(function(a, b)
 
 hw <- left_join(hw, usa_region, by = 'STUSAB')
 
-hw %>%
-  mutate(Month = factor(Month, levels = c("1","2","3","4","5","6","7","8","9","10",'11',"12"))) %>%
-  ggplot(aes(x = Month, y = MeanResidaulQ)) +
-  geom_boxplot(position = "dodge", color = "black", outlier.shape = NA) +
-  # geom_jitter(shape=16, alpha = 0.4, size = 2, position=position_jitter(0.1)) +
-  ylab(expression(Mean~Residual~Q~During~HW~(m^3~s^-1))) +
-  xlab("Month") +
-  scale_fill_manual(values = cols) +
-  geom_hline(yintercept = 0, linetype = "longdash") +
-  scale_y_continuous(breaks = seq(-150,75,25)) +
-  coord_cartesian(ylim = c(-150, 75)) +
-  theme_bw() +
-  theme(panel.grid = element_blank(),
-        text = element_text(size = 16, color = "black"),
-        axis.text.x = element_text(size = 16, color = "black"),
-        axis.text.y = element_text(size = 16, color = 'black'),
-        legend.title = element_blank(),
-        legend.direction = "horizontal",
-        legend.position = c(0.12,0.95),
-        legend.background = element_blank())
-
 hw_region <- hw %>%
   group_by(Year, Region) %>%
   summarise(Avg.Duration = mean(duration, na.rm = T),
             Avg.CuInt = mean(intensity_cumulative_relThresh, na.rm = T),
-            Avg.Onset = mean(rate_onset, na.rm = T),
-            Avg.Decline = mean(rate_decline, na.rm = T),
             SumEvents = length(duration))
 
 hw_season <- hw %>%
   group_by(Year, Season) %>%
   summarise(Avg.Duration = mean(duration, na.rm = T),
             Avg.CuInt = mean(intensity_cumulative_relThresh, na.rm = T),
-            Avg.Onset = mean(rate_onset, na.rm = T),
-            Avg.Decline = mean(rate_decline, na.rm = T),
             Frequency = length(duration)/NROW(unique(hw$site_no)))
 
 hw_time <- hw %>%
   group_by(Year) %>%
   summarise(Avg.Duration = mean(duration, na.rm = T),
             Avg.CuInt = mean(intensity_cumulative_relThresh, na.rm = T),
-            Avg.Onset = mean(rate_onset, na.rm = T),
-            Avg.Decline = mean(rate_decline, na.rm = T),
             Frequency = length(duration)/NROW(unique(hw$site_no)))
 
 hw_order <- hw %>%
   group_by(Year, StreamOrder) %>%
   summarise(Avg.Duration = mean(duration, na.rm = T),
             Avg.CuInt = mean(intensity_cumulative_relThresh, na.rm = T),
-            Avg.Onset = mean(rate_onset, na.rm = T),
-            Avg.Decline = mean(rate_decline, na.rm = T),
             SumEvents = length(duration))
 
 hw_reservoir <- hw %>%
   group_by(Year, Reservoir) %>%
   summarise(Avg.Duration = mean(duration, na.rm = T),
             Avg.CuInt = mean(intensity_cumulative_relThresh, na.rm = T),
-            Avg.Onset = mean(rate_onset, na.rm = T),
-            Avg.Decline = mean(rate_decline, na.rm = T),
             SumEvents = length(duration))
 
 hw %>%
   group_by(Region) %>%
   summarise(count = n_distinct(site_no))
 
+hw_region$nStations <- NA
 hw_region$nStations[hw_region$Region == 'Alaska'] <- 1
 hw_region$nStations[hw_region$Region == 'ENC'] <- 4
 hw_region$nStations[hw_region$Region == 'NE'] <- 11
@@ -593,6 +461,7 @@ station_details %>%
   group_by(StreamOrder) %>%
   summarise(count = n_distinct(site_no))
 
+hw_order$nStations <- NA
 hw_order$nStations[hw_order$StreamOrder == 1] <- 2
 hw_order$nStations[hw_order$StreamOrder == 3] <- 4
 hw_order$nStations[hw_order$StreamOrder == 4] <- 8
@@ -663,12 +532,13 @@ hw_order <- merge(hw_order, streamOrder, by = c("Year","StreamOrder"), all = TRU
 hw_order[is.na(hw_order)] <- 0
 
 hw_time$Type <- "HW"
-hw_time <- hw_time[,c(1,7,2:6)]
+hw_time <- hw_time[,c(1,5,2:4)]
 
 hw %>%
   group_by(Reservoir) %>%
   summarise(count = n_distinct(site_no))
 
+hw_reservoir$nStations <- NA
 hw_reservoir$nStations[hw_reservoir$Reservoir == 'Above'] <- 11
 hw_reservoir$nStations[hw_reservoir$Reservoir == 'Below'] <- 15
 hw_reservoir$nStations[hw_reservoir$Reservoir == 'None'] <- 44
@@ -742,50 +612,6 @@ for(i in 1:length(aa)){
   slope = ss$estimates
   Type = aa[i]
   cur_hw_time = data.frame(TestType = "Time",
-                           Variable = "Avg.Onset",
-                           Category = "Time",
-                           slope = round(slope, 3),
-                           p.val = round(p.val, 4))
-  if( i == 1){
-    hw_time_onset = cur_hw_time
-  } else{
-    hw_time_onset = rbind(hw_time_onset, cur_hw_time)
-  }
-}
-for(i in 1:length(aa)){
-  curDat = hw_time[hw_time$Type == aa[i],]
-  ts = ts(data = curDat[, 6],
-          frequency = 1,
-          start = min(curDat$Year),
-          end = max(curDat$Year))
-  ManKen = MannKendall(ts)
-  ss = sens.slope(ts)
-  p.val = ManKen$sl
-  slope = ss$estimates
-  Type = aa[i]
-  cur_hw_time = data.frame(TestType = "Time",
-                           Variable = "Avg.Decline",
-                           Category = "Time",
-                           slope = round(slope, 3),
-                           p.val = round(p.val, 4))
-  if( i == 1){
-    hw_time_decline = cur_hw_time
-  } else{
-    hw_time_decline = rbind(hw_time_decline, cur_hw_time)
-  }
-}
-for(i in 1:length(aa)){
-  curDat = hw_time[hw_time$Type == aa[i],]
-  ts = ts(data = curDat[, 7],
-          frequency = 1,
-          start = min(curDat$Year),
-          end = max(curDat$Year))
-  ManKen = MannKendall(ts)
-  ss = sens.slope(ts)
-  p.val = ManKen$sl
-  slope = ss$estimates
-  Type = aa[i]
-  cur_hw_time = data.frame(TestType = "Time",
                            Variable = "Frequency",
                            Category = "Time",
                            slope = round(slope, 3),
@@ -796,7 +622,6 @@ for(i in 1:length(aa)){
     hw_time_freq = rbind(hw_time_freq, cur_hw_time)
   }
 }
-
 
 #######################################################################################
 #                                                                                     #
@@ -850,51 +675,7 @@ for(i in 1:length(bb)){
 }
 for(i in 1:length(bb)){
   curDat = hw_region[hw_region$Region == bb[i],]
-  ts = ts(data = curDat[, 5],
-          frequency = 1,
-          start = min(curDat$Year),
-          end = max(curDat$Year))
-  ManKen = MannKendall(ts)
-  ss = sens.slope(ts)
-  p.val = ManKen$sl
-  slope = ss$estimates
-  Region = bb[i]
-  cur_hw_region = data.frame(TestType = "Region",
-                             Variable = "Avg.Onset",
-                             Category = Region,
-                             slope = round(slope, 3),
-                             p.val = round(p.val, 4))
-  if( i == 1){
-    hw_region_onset = cur_hw_region
-  } else{
-    hw_region_onset = rbind(hw_region_onset, cur_hw_region)
-  }
-}
-for(i in 1:length(bb)){
-  curDat = hw_region[hw_region$Region == bb[i],]
-  ts = ts(data = curDat[, 6],
-          frequency = 1,
-          start = min(curDat$Year),
-          end = max(curDat$Year))
-  ManKen = MannKendall(ts)
-  ss = sens.slope(ts)
-  p.val = ManKen$sl
-  slope = ss$estimates
-  Region = bb[i]
-  cur_hw_region = data.frame(TestType = "Region",
-                             Variable = "Avg.Decline",
-                             Category = Region,
-                             slope = round(slope, 3),
-                             p.val = round(p.val, 4))
-  if( i == 1){
-    hw_region_decline = cur_hw_region
-  } else{
-    hw_region_decline = rbind(hw_region_decline, cur_hw_region)
-  }
-}
-for(i in 1:length(bb)){
-  curDat = hw_region[hw_region$Region == bb[i],]
-  ts = ts(data = curDat[, 9],
+  ts = ts(data = curDat[, 7],
           frequency = 1,
           start = min(curDat$Year),
           end = max(curDat$Year))
@@ -977,50 +758,6 @@ for(i in 1:length(cc)){
   slope = ss$estimates
   Season = cc[i]
   cur_hw_season = data.frame(TestType = "Season",
-                             Variable = "Avg.Onset",
-                             Category = Season,
-                             slope = round(slope, 3),
-                             p.val = round(p.val, 4))
-  if( i == 1){
-    hw_season_onset = cur_hw_season
-  } else{
-    hw_season_onset = rbind(hw_season_onset, cur_hw_season)
-  }
-}
-for(i in 1:length(cc)){
-  curDat = hw_season[hw_season$Season == cc[i],]
-  ts = ts(data = curDat[, 6],
-          frequency = 1,
-          start = min(curDat$Year),
-          end = max(curDat$Year))
-  ManKen = MannKendall(ts)
-  ss = sens.slope(ts)
-  p.val = ManKen$sl
-  slope = ss$estimates
-  Season = cc[i]
-  cur_hw_season = data.frame(TestType = "Season",
-                             Variable = "Avg.Decline",
-                             Category = Season,
-                             slope = round(slope, 3),
-                             p.val = round(p.val, 4))
-  if( i == 1){
-    hw_season_decline = cur_hw_season
-  } else{
-    hw_season_decline = rbind(hw_season_decline, cur_hw_season)
-  }
-}
-for(i in 1:length(cc)){
-  curDat = hw_season[hw_season$Season == cc[i],]
-  ts = ts(data = curDat[, 7],
-          frequency = 1,
-          start = min(curDat$Year),
-          end = max(curDat$Year))
-  ManKen = MannKendall(ts)
-  ss = sens.slope(ts)
-  p.val = ManKen$sl
-  slope = ss$estimates
-  Season = cc[i]
-  cur_hw_season = data.frame(TestType = "Season",
                              Variable = "Frequency",
                              Category = Season,
                              slope = round(slope, 3),
@@ -1084,51 +821,7 @@ for(i in 1:length(dd)){
 }
 for(i in 1:length(dd)){
   curDat = hw_order[hw_order$StreamOrder == dd[i],]
-  ts = ts(data = curDat[, 5],
-          frequency = 1,
-          start = min(curDat$Year),
-          end = max(curDat$Year))
-  ManKen = MannKendall(ts)
-  ss = sens.slope(ts)
-  p.val = ManKen$sl
-  slope = ss$estimates
-  StreamOrder = dd[i]
-  cur_hw_order = data.frame(TestType = "StreamOrder",
-                            Variable = "Avg.Onset",
-                            Category = StreamOrder,
-                            slope = round(slope, 3),
-                            p.val = round(p.val, 4))
-  if( i == 1){
-    hw_order_onset = cur_hw_order
-  } else{
-    hw_order_onset = rbind(hw_order_onset, cur_hw_order)
-  }
-}
-for(i in 1:length(dd)){
-  curDat = hw_order[hw_order$StreamOrder == dd[i],]
-  ts = ts(data = curDat[, 6],
-          frequency = 1,
-          start = min(curDat$Year),
-          end = max(curDat$Year))
-  ManKen = MannKendall(ts)
-  ss = sens.slope(ts)
-  p.val = ManKen$sl
-  slope = ss$estimates
-  StreamOrder = dd[i]
-  cur_hw_order = data.frame(TestType = "StreamOrder",
-                            Variable = "Avg.Decline",
-                            Category = StreamOrder,
-                            slope = round(slope, 3),
-                            p.val = round(p.val, 4))
-  if( i == 1){
-    hw_order_decline = cur_hw_order
-  } else{
-    hw_order_decline = rbind(hw_order_decline, cur_hw_order)
-  }
-}
-for(i in 1:length(dd)){
-  curDat = hw_order[hw_order$StreamOrder == dd[i],]
-  ts = ts(data = curDat[, 9],
+  ts = ts(data = curDat[, 7],
           frequency = 1,
           start = min(curDat$Year),
           end = max(curDat$Year))
@@ -1201,51 +894,7 @@ for(i in 1:length(ee)){
 }
 for(i in 1:length(ee)){
   curDat = hw_reservoir[hw_reservoir$Reservoir == ee[i],]
-  ts = ts(data = curDat[, 5],
-          frequency = 1,
-          start = min(curDat$Year),
-          end = max(curDat$Year))
-  ManKen = MannKendall(ts)
-  ss = sens.slope(ts)
-  p.val = ManKen$sl
-  slope = ss$estimates
-  Reservoir = ee[i]
-  cur_hw_reservoir = data.frame(TestType = "Reservoir",
-                            Variable = "Avg.Onset",
-                            Category = Reservoir,
-                            slope = round(slope, 3),
-                            p.val = round(p.val, 4))
-  if( i == 1){
-    hw_reservoir_onset = cur_hw_reservoir
-  } else{
-    hw_reservoir_onset = rbind(hw_reservoir_onset, cur_hw_reservoir)
-  }
-}
-for(i in 1:length(ee)){
-  curDat = hw_reservoir[hw_reservoir$Reservoir == ee[i],]
-  ts = ts(data = curDat[, 6],
-          frequency = 1,
-          start = min(curDat$Year),
-          end = max(curDat$Year))
-  ManKen = MannKendall(ts)
-  ss = sens.slope(ts)
-  p.val = ManKen$sl
-  slope = ss$estimates
-  Reservoir = ee[i]
-  cur_hw_reservoir = data.frame(TestType = "Reservoir",
-                            Variable = "Avg.Decline",
-                            Category = Reservoir,
-                            slope = round(slope, 3),
-                            p.val = round(p.val, 4))
-  if( i == 1){
-    hw_reservoir_decline = cur_hw_reservoir
-  } else{
-    hw_reservoir_decline = rbind(hw_reservoir_decline, cur_hw_reservoir)
-  }
-}
-for(i in 1:length(ee)){
-  curDat = hw_reservoir[hw_reservoir$Reservoir == ee[i],]
-  ts = ts(data = curDat[, 9],
+  ts = ts(data = curDat[, 7],
           frequency = 1,
           start = min(curDat$Year),
           end = max(curDat$Year))
@@ -1266,53 +915,56 @@ for(i in 1:length(ee)){
   }
 }
 
-hw_time_output <- rbind(hw_time_duration, hw_time_intensity, hw_time_freq, hw_time_onset, hw_time_decline)
+hw_time_output <- rbind(hw_time_duration, hw_time_intensity, hw_time_freq)
 hw_time_output <- hw_time_output %>% arrange(-desc(p.val))
-hw_time_output$Rank <- seq(1,5,1)
+hw_time_output$Rank <- seq(1,3,1)
 
-hw_region_output <- rbind(hw_region_duration, hw_region_intensity, hw_region_freq, hw_region_onset, hw_region_decline)
+hw_region_output <- rbind(hw_region_duration, hw_region_intensity, hw_region_freq)
 hw_region_output <- hw_region_output %>% arrange(-desc(p.val))
-hw_region_output$Rank <- seq(1,45,1)
+hw_region_output$Rank <- seq(1,27,1)
 
-hw_season_output <- rbind(hw_season_duration, hw_season_intensity, hw_season_freq, hw_season_onset, hw_season_decline)
+hw_season_output <- rbind(hw_season_duration, hw_season_intensity, hw_season_freq)
 hw_season_output <- hw_season_output %>% arrange(-desc(p.val))
-hw_season_output$Rank <- seq(1,20,1)
+hw_season_output$Rank <- seq(1,12,1)
 
-hw_order_output <- rbind(hw_order_duration, hw_order_intensity, hw_order_freq, hw_order_onset, hw_order_decline)
+hw_order_output <- rbind(hw_order_duration, hw_order_intensity, hw_order_freq)
 hw_order_output <- hw_order_output %>% arrange(-desc(p.val))
-hw_order_output$Rank <- seq(1,40,1)
+hw_order_output$Rank <- seq(1,24,1)
 
-hw_reservoir_output <- rbind(hw_reservoir_duration, hw_reservoir_intensity, hw_reservoir_freq, hw_reservoir_onset, hw_reservoir_decline)
+hw_reservoir_output <- rbind(hw_reservoir_duration, hw_reservoir_intensity, hw_reservoir_freq)
 hw_reservoir_output <- hw_reservoir_output %>% arrange(-desc(p.val))
-hw_reservoir_output$Rank <- seq(1,15,1)
+hw_reservoir_output$Rank <- seq(1,9,1)
 
-### 10% False Discovery Rate (see link for details: http://www.biostathandbook.com/multiplecomparisons.html)
+### 15% False Discovery Rate (see link for details: http://www.biostathandbook.com/multiplecomparisons.html)
+### using 10% FDR we had 7 stat. sig. results = 7 * 0.1 = 0.7 tests were false positives
+### using 15% FDR we had 9 stat. sig. results = 9 * 0.15 = 1.35 tests were false positives & largest raw p-value = 0.018
+### using 20% FDR we had 12 stat. sig. results = 12 * 0.2 = 2.4 tests were false positives & largest raw p-value = 0.048
 
-fdr_table <- data.frame(matrix(ncol = 3, nrow = 125))
-x <- c("TestType", "Rank", "FDR_0.1")
+fdr_table <- data.frame(matrix(ncol = 3, nrow = 75))
+x <- c("TestType", "Rank", "FDR_0.15")
 colnames(fdr_table) <- x
-fdr_table[1:5,1] <- "Time"
-fdr_table[6:50,1] <- "Region"
-fdr_table[51:70,1] <- "Season"
-fdr_table[71:110,1] <- "StreamOrder"
-fdr_table[111:125,1] <- "Reservoir"
-fdr_table[1:5,2] <- seq(1,5,1)
-fdr_table[6:50,2] <- seq(1,45,1)
-fdr_table[51:70,2] <- seq(1,20,1)
-fdr_table[71:110,2] <- seq(1,40,1)
-fdr_table[111:125,2] <- seq(1,15,1)
-fdr_table[1:5,3] <- round((fdr_table$Rank[1:5]/5)*.1,4)
-fdr_table[6:50,3] <- round((fdr_table$Rank[6:50]/45)*.1,4)
-fdr_table[51:70,3] <- round((fdr_table$Rank[51:70]/20)*.1,4)
-fdr_table[71:110,3] <- round((fdr_table$Rank[71:110]/40)*.1,4)
-fdr_table[111:125,3] <- round((fdr_table$Rank[111:125]/15)*.1,4)
+fdr_table[1:3,1] <- "Time"
+fdr_table[4:30,1] <- "Region"
+fdr_table[31:42,1] <- "Season"
+fdr_table[43:66,1] <- "StreamOrder"
+fdr_table[67:75,1] <- "Reservoir"
+fdr_table[1:3,2] <- seq(1,3,1)
+fdr_table[4:30,2] <- seq(1,27,1)
+fdr_table[31:42,2] <- seq(1,12,1)
+fdr_table[43:66,2] <- seq(1,24,1)
+fdr_table[67:75,2] <- seq(1,9,1)
+fdr_table[1:3,3] <- round((fdr_table$Rank[1:3]/3)*0.15,4)
+fdr_table[4:30,3] <- round((fdr_table$Rank[4:30]/27)*0.15,4)
+fdr_table[31:42,3] <- round((fdr_table$Rank[31:42]/12)*0.15,4)
+fdr_table[43:66,3] <- round((fdr_table$Rank[43:66]/24)*0.15,4)
+fdr_table[67:75,3] <- round((fdr_table$Rank[67:75]/9)*0.15,4)
 
 hw_MKSS_results <- rbind(hw_time_output, hw_region_output, hw_season_output, hw_order_output, hw_reservoir_output)
 hw_MKSS_results <- left_join(hw_MKSS_results,fdr_table, by = c("TestType","Rank"))
 hw_MKSS_results$SigTest <- ifelse(hw_MKSS_results$p.val < hw_MKSS_results$FDR_0.1,"Sig","NS")
-hw_MKSS_results_sig <- hw_MKSS_results[c(1:2,51:52,71:78,111:115),]
+hw_MKSS_results_sig <- hw_MKSS_results[c(1,31,43:48,67:69),] # two results have p-value < 0.05 but greater than the adjusted critical value. Felt worthy of reporting them along with their critical value.
 View(hw_MKSS_results_sig)
-# write.csv(hw_MKSS_results_sig, '70sites_MKSS_results2.csv')
+# write.csv(hw_MKSS_results_sig, '70sites_MKSS_results.csv')
 
 hw_meanResidQ <- hw %>%
   group_by(StreamOrder) %>%
@@ -1349,7 +1001,13 @@ hw_cat_total %>%
   summarise(TotalEvents = sum(TotalEvents_HW),
             FracTotEvents = round(((TotalEvents/3985)*100),digits = 2))
 
-Fig3a <- ggplot(data = hw_cat_total) +
+test <- saveCatWarm
+colnames(test)[12] <- "site_no"
+test <- merge(test, station_details, by = "site_no")
+test <- merge(test, usa_region, by = "STUSAB")
+test <- test[,c(1:21,32:34)]
+
+Fig2a <- ggplot(data = hw_cat_total) +
   geom_col(aes(x = as.numeric(year), y = TotalEvents_HW,
                fill = fct_rev(as_factor(category))), color = "black",
            width = 1) +
@@ -1397,7 +1055,7 @@ hw_sum2 <- hw_sum %>%
 hw_sum_lm <- lm(hw_sum2$MeanAnnualTotalDuration~hw_sum2$year)
 summary(hw_sum_lm)
 
-Fig3b <- ggplot(data = hw_sum2, aes(x = year, y = MeanAnnualTotalDuration)) +
+Fig2b <- ggplot(data = hw_sum2, aes(x = year, y = MeanAnnualTotalDuration)) +
   geom_smooth(method = "lm", formula = y~x, color = "black", size = 0.5, se = TRUE) +
   geom_point(shape = 21, size = 2, color = "black", fill = "white", stroke = 1) +
   xlab("Year") +
@@ -1416,7 +1074,7 @@ Fig3b <- ggplot(data = hw_sum2, aes(x = year, y = MeanAnnualTotalDuration)) +
         axis.text.y = element_text(size = 16, color = "black"))
 
 # width = 600 height = 800
-ggarrange(Fig3a,Fig3b, ncol = 1)
+ggarrange(Fig2a,Fig2b, ncol = 1, align = 'v')
 
 residualQ$year <- year(residualQ$Date)
 annualQ <- residualQ %>%
@@ -1464,7 +1122,7 @@ ggplot(test2, aes(x = NormalizedAnnualMeanQ, y = Region, fill = Region)) +
         legend.position = "none",
         legend.title = element_blank())
 
-fig_totHW <- ggplot(test2, aes(x = TotalEvents_HW.x, y = Region, fill = Region, height = ..density..)) +
+SIfig1_totHW <- ggplot(test2, aes(x = TotalEvents_HW.x, y = Region, fill = Region, height = ..density..)) +
   geom_density_ridges(scale = 3, rel_min_height = 0.01,
                       stat = "density", trim = TRUE) +
   scale_fill_manual(values = cols3) +
@@ -1479,7 +1137,7 @@ fig_totHW <- ggplot(test2, aes(x = TotalEvents_HW.x, y = Region, fill = Region, 
         legend.position = "none",
         legend.title = element_blank())
 
-fig_durHW <- ggplot(hw, aes(x = duration, y = Region, fill = Region, height = ..density..)) +
+SIfig1_durHW <- ggplot(hw, aes(x = duration, y = Region, fill = Region, height = ..density..)) +
   geom_density_ridges(scale = 3, rel_min_height = 0.0005,
                       stat = "density", trim = TRUE) +
   scale_fill_manual(values = cols3) +
@@ -1495,7 +1153,7 @@ fig_durHW <- ggplot(hw, aes(x = duration, y = Region, fill = Region, height = ..
         legend.position = "none",
         legend.title = element_blank())
 
-fig_intHW <- ggplot(hw, aes(x = intensity_max_relThresh, y = Region, fill = Region, height = ..density..)) +
+SIfig1_intHW <- ggplot(hw, aes(x = intensity_max_relThresh, y = Region, fill = Region, height = ..density..)) +
   geom_density_ridges(scale = 3, rel_min_height = 0.0005,
                       stat = "density", trim = TRUE) +
   scale_fill_manual(values = cols3) +
@@ -1512,15 +1170,39 @@ fig_intHW <- ggplot(hw, aes(x = intensity_max_relThresh, y = Region, fill = Regi
         legend.title = element_blank())
 
 # width = 1200, height = 500
-ggarrange(fig_totHW,fig_durHW,fig_intHW, nrow = 1, align = 'h', widths = c(1.2,1,1))
+ggarrange(SIfig1_totHW,SIfig1_durHW,SIfig1_intHW, nrow = 1, align = 'h', widths = c(1.2,1,1))
 
 # width = 750 height = 550
-fig5 <- ggplot(data = hw_q, aes(x = AnnualMeanQ, y = TotalEvents_HW)) +
-  geom_point(shape = 21, size = 2, color = "black", fill = "black", stroke = 1, alpha = 0.4) +
+
+Fig3a <- hw %>%
+  mutate(Month = factor(Month, levels = c("1","2","3","4","5","6","7","8","9","10",'11',"12"))) %>%
+  ggplot(aes(x = Month, y = MeanResidaulQ)) +
+  geom_boxplot(position = "dodge", color = "black", outlier.shape = NA) +
+  # geom_jitter(shape=16, alpha = 0.4, size = 2, position=position_jitter(0.1)) +
+  ylab(expression(Mean~Residual~Q~During~HW~(m^3~s^-1))) +
+  xlab("Month") +
+  annotate("text", x = 11.5, y = 70, label = "(a", size = 6) +
+  scale_fill_manual(values = cols) +
+  geom_hline(yintercept = 0, linetype = "longdash") +
+  scale_y_continuous(breaks = seq(-150,75,25)) +
+  coord_cartesian(ylim = c(-150, 75)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        text = element_text(size = 16, color = "black"),
+        axis.text.x = element_text(size = 16, color = "black"),
+        axis.text.y = element_text(size = 16, color = 'black'),
+        legend.title = element_blank(),
+        legend.direction = "horizontal",
+        legend.position = c(0.12,0.95),
+        legend.background = element_blank())
+
+Fig3b <- ggplot(data = hw_q, aes(x = AnnualMeanQ, y = TotalEvents_HW)) +
+  geom_point(shape = 21, size = 2, color = "black", fill = "black", stroke = 1, alpha = 0.2) +
   scale_x_continuous(breaks = seq(0, 1500, 100), limits = c(0,1500)) +
   scale_y_continuous(breaks = seq(0, 12, 1), limits = c(0,12)) +
   xlab(expression(Annual~Daily~Mean~Q~(m^3~s^-1))) +
   ylab("Total Annual HW Events") +
+  annotate("text", x = 1450, y = 11.5, label = "(b", size = 6) +
   theme_bw() +
   theme(panel.grid = element_blank(),
         text = element_text(size = 16),
@@ -1529,19 +1211,6 @@ fig5 <- ggplot(data = hw_q, aes(x = AnnualMeanQ, y = TotalEvents_HW)) +
         legend.position = "none",
         legend.title = element_blank())
 
-dens1 <- ggplot(hw_q, aes(x = AnnualMeanQ)) +
-  geom_density() +
-  theme_void() +
-  theme(legend.position = "none")
-dens2 <- ggplot(hw_q, aes(x = TotalEvents_HW)) +
-  geom_density(adjust = 2) +
-  theme_void() +
-  theme(legend.position = "none") +
-  coord_flip()
-
-library(ggpubr)
-library(patchwork)
-
-dens1 + plot_spacer() + fig5 + dens2 +
-  plot_layout(ncol = 2, nrow = 2, widths = c(5,1), heights = c(1,5))
+# width = 600 height = 900
+ggarrange(Fig3a,Fig3b, ncol = 1, align = 'v')
 
