@@ -1011,7 +1011,7 @@ Fig2a <- ggplot(data = hw_cat_total) +
   geom_col(aes(x = as.numeric(year), y = TotalEvents_HW,
                fill = fct_rev(as_factor(category))), color = "black",
            width = 1) +
-  scale_fill_manual(values = c("#000000", "#777777","#C7C7C7","#FFFFFF")) +
+  scale_fill_manual(values = c("#7f1416","#cb3827","#f26722","#ffda68")) +
   xlab("Year") +
   scale_x_continuous(breaks = seq(1996, 2021, 4)) +
   scale_y_continuous(breaks = seq(0,350,50)) +
@@ -1056,7 +1056,7 @@ hw_sum_lm <- lm(hw_sum2$MeanAnnualTotalDuration~hw_sum2$year)
 summary(hw_sum_lm)
 
 Fig2b <- ggplot(data = hw_sum2, aes(x = year, y = MeanAnnualTotalDuration)) +
-  geom_smooth(method = "lm", formula = y~x, color = "black", size = 0.5, se = TRUE) +
+  geom_smooth(method = "lm", formula = y~x, color = "red", size = 0.5, se = TRUE) +
   geom_point(shape = 21, size = 2, color = "black", fill = "white", stroke = 1) +
   xlab("Year") +
   scale_x_continuous(breaks = seq(1996, 2021, 4)) +
