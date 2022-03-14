@@ -41,14 +41,6 @@ dat_final_large <- readNWISdv(siteNumbers = full_station_list$site_no, # readNWI
                               startDate = startDate,
                               endDate = endDate) 
 dat_final_large <- renameNWISColumns(dat_final_large)
-# setwd("F:/School/USGSdata/GitHub")
-# write.csv(dat_final_large, 'dat_final_large.csv')
-# dat_final_large <- read.csv('dat_final_large.csv')
-# dat_final_large$site_no <- as.character(dat_final_large$site_no)
-# head(which(dat_final_large$site_no == "10126000", arr.ind=TRUE)) # take 1 minus the smallest number and put into next line of code
-# dat_final_large <- dat_final_large %>%
-#   mutate(site_no = ifelse(row_number()<=1143448, paste0("0", site_no), site_no))
-# full_station_list <- dat_final_large$site_no
 
 Wtemp_daily <- dat_final_large[,1:5]
 startDate <- as.Date("1996-01-01")
@@ -112,12 +104,6 @@ keep_sites_temp[nm] <- lapply(nm, function(x) full_station_list[[x]][match(keep_
 lat_long <- keep_sites_temp %>%
   group_by(site_no) %>%
   summarise(lat = mean(dec_lat_va),
-            lon = mean(dec_long_va),
-            state = NA)
-
-lat_long <- keep_sites_temp %>%
-  group_by(site_no) %>%
-  summarise(lat = mean(dec_lat_va),
             lon = mean(dec_long_va))
 
 ### Add state name and abbreviation to lat_long
@@ -146,7 +132,7 @@ x <- c("site","lat","lon")
 colnames(lat_long) <- x
 
 setwd("F:/School/USGSdata/GitHub")
-write.csv(lat_long, '82USGSsites_26YearWTemp_LatLong.csv') # in the csv be sure to remove first column which is a sequence of 1-82.
+# write.csv(lat_long, '82USGSsites_26YearWTemp_LatLong.csv') # in the csv be sure to remove first column which is a sequence of 1-82.
 
 station_list <-  full_station_list[(full_station_list$site_no %in% Wtemp_daily$site_no),]
 station_list <- station_list[,c(1:3,5:12)]
@@ -172,8 +158,6 @@ station_details <- station_details[station_details$site_no %in% Wtemp_daily$site
 # Grab meterological data to build water temperature regression with
 # https://www.nature.com/articles/s41597-021-00973-0#code-availability
 library(daymetr)
-
-setwd("F:/School/USGSdata/GitHub")
 
 met_dat <- download_daymet_batch(file_location = '82USGSsites_26YearWtemp_LatLong.csv',
                                  start = 1996,
@@ -412,106 +396,60 @@ cols <- c("NE" = "#d73027", "ENC" = "#f46d43", "SE" = "#ffffbf",
           "NW" = "#4575b4","West" = "#313695","Alaska" = "#a50026")
 
 summary(lm(wtemp_slope~atemp_slope, data = temp_trends))
-boxplot(temp_trends$wtemp_slope)
-outliers <- c("02337170","11261100","02397530")
-temp_trends_noOutliers <- temp_trends[!temp_trends$site_no %in% outliers,]
-summary(lm(wtemp_slope~atemp_slope, data = temp_trends_noOutliers))
 
 # width = 700 height = 550
-ggplot(data = temp_trends, aes(x = atemp_slope, y = wtemp_slope)) +
-  geom_abline(slope = 1, linetype = 'longdash') +
-  geom_hline(yintercept = 0, color = "black") +
-  geom_vline(xintercept = 0, color ="black") +
-  geom_point(shape = 21, size = 3, aes(fill = factor(Region))) +
-  scale_fill_manual(values = cols) +
-  ylab(expression(Annual~Mean~Water~Temp.~Trend~(degree*C~yr^-1))) +
-  xlab(expression(Annual~Mean~Atmo.~Temp.~Trend~(degree*C~yr^-1))) +
-  labs(fill = "Region") +
-  scale_y_continuous(breaks = seq(-0.06,0.06,0.02), limits = c(-0.07,0.07)) +
-  scale_x_continuous(breaks = seq(-0.06,0.06,0.02), limits = c(-0.07,0.07)) +
-  annotate("text", x = -0.07, y = 0.06, label = "y = 0.28x + 0.01", size = 5, hjust = 0) +
-  annotate("text", x = -0.07, y = 0.05, label = "p-value = 0.11", size = 5, hjust = 0) +
-  annotate("text", x = -0.07, y = 0.04, label = expression(paste(R^2," = 0.04")), size = 5, hjust = 0) +
-  theme_bw() +
-  theme(panel.grid = element_blank(),
-        text = element_text(size = 16, color = "black"),
-        axis.text.x = element_text(size = 16, color = "black"),
-        axis.text.y = element_text(size = 16, color = 'black'),
-        legend.title.align = 0.5,
-        legend.position = c(0.1,0.3))
-
-ggplot(data = temp_trends_noOutliers, aes(x = atemp_slope, y = wtemp_slope)) +
-  geom_abline(slope = 1, linetype = 'longdash') +
-  geom_hline(yintercept = 0, color = "black") +
-  geom_vline(xintercept = 0, color ="black") +
-  stat_smooth(method = 'lm', se = F, color = "black") +
-  geom_point(shape = 21, size = 3, aes(fill = factor(Region))) +
-  scale_fill_manual(values = cols) +
-  ylab(expression(Annual~Mean~Water~Temp.~Trend~(degree*C~yr^-1))) +
-  xlab(expression(Annual~Mean~Atmo.~Temp.~Trend~(degree*C~yr^-1))) +
-  labs(fill = "Region") +
-  scale_y_continuous(breaks = seq(-0.06,0.06,0.02), limits = c(-0.07,0.07)) +
-  scale_x_continuous(breaks = seq(-0.06,0.06,0.02), limits = c(-0.07,0.07)) +
-  annotate("text", x = -0.07, y = 0.06, label = "y = 0.61x + 0.005", size = 5, hjust = 0) +
-  annotate("text", x = -0.07, y = 0.05, label = "p-value < 0.001", size = 5, hjust = 0) +
-  annotate("text", x = -0.07, y = 0.04, label = expression(paste(R^2," = 0.27")), size = 5, hjust = 0) +
-  theme_bw() +
-  theme(panel.grid = element_blank(),
-        text = element_text(size = 16, color = "black"),
-        axis.text.x = element_text(size = 16, color = "black"),
-        axis.text.y = element_text(size = 16, color = 'black'),
-        legend.title.align = 0.5,
-        legend.position = c(0.1,0.3))
+# ggplot(data = temp_trends, aes(x = atemp_slope, y = wtemp_slope)) +
+#   geom_abline(slope = 1, linetype = 'longdash') +
+#   geom_hline(yintercept = 0, color = "black") +
+#   geom_vline(xintercept = 0, color ="black") +
+#   geom_point(shape = 21, size = 3, aes(fill = factor(Region))) +
+#   scale_fill_manual(values = cols) +
+#   ylab(expression(Annual~Mean~Water~Temp.~Trend~(degree*C~yr^-1))) +
+#   xlab(expression(Annual~Mean~Atmo.~Temp.~Trend~(degree*C~yr^-1))) +
+#   labs(fill = "Region") +
+#   scale_y_continuous(breaks = seq(-0.06,0.06,0.02), limits = c(-0.07,0.07)) +
+#   scale_x_continuous(breaks = seq(-0.06,0.06,0.02), limits = c(-0.07,0.07)) +
+#   annotate("text", x = -0.07, y = 0.06, label = "y = 0.28x + 0.01", size = 5, hjust = 0) +
+#   annotate("text", x = -0.07, y = 0.05, label = "p-value = 0.11", size = 5, hjust = 0) +
+#   annotate("text", x = -0.07, y = 0.04, label = expression(paste(R^2," = 0.04")), size = 5, hjust = 0) +
+#   theme_bw() +
+#   theme(panel.grid = element_blank(),
+#         text = element_text(size = 16, color = "black"),
+#         axis.text.x = element_text(size = 16, color = "black"),
+#         axis.text.y = element_text(size = 16, color = 'black'),
+#         legend.title.align = 0.5,
+#         legend.position = c(0.1,0.3))
 
 summary(lm(normalized_wtemp_slope~normalized_atemp_slope, data = temp_trends))
-summary(lm(normalized_wtemp_slope~normalized_atemp_slope, data = temp_trends_noOutliers))
+# summary(lm(normalized_wtemp_slope~normalized_atemp_slope, data = temp_trends_noOutliers))
 
-ggplot(data = temp_trends, aes(x = normalized_atemp_slope, y = normalized_wtemp_slope)) +
+Fig4a <- ggplot(data = temp_trends, aes(x = normalized_atemp_slope, y = normalized_wtemp_slope)) +
   geom_abline(slope = 1, linetype = 'longdash') +
   geom_hline(yintercept = 0, color = "black") +
   geom_vline(xintercept = 0, color ="black") +
-  geom_point(shape = 21, size = 3, aes(fill = factor(Region))) +
+  stat_smooth(method = 'lm', se = F, color = "red") +
+  geom_point(shape = 21, size = 4, aes(fill = factor(Region))) +
   scale_fill_manual(values = cols) +
-  ylab(expression(Normalized~Annual~Water~Temp.~Trend~("%"~yr^-1))) +
+  ylab(expression(atop(Normalized~Annual,
+                         Water~Temp.~Trend~("%"~yr^-1)))) +
   xlab(expression(Normalized~Annual~Atmo~Temp.~Trend~("%"~yr^-1))) +
   labs(fill = "Region") +
   scale_y_continuous(breaks = seq(-0.4,0.8,0.2), limits = c(-0.4,0.8)) +
   scale_x_continuous(breaks = seq(-0.4,0.8,0.2), limits = c(-0.4,0.8)) +
-  annotate("text", x = -0.4, y = 0.8, label = "y = 0.39x + 0.07", size = 5, hjust = 0) +
-  annotate("text", x = -0.4, y = 0.7, label = "p-value = 0.004", size = 5, hjust = 0) +
-  annotate("text", x = -0.4, y = 0.6, label = expression(paste(R^2," = 0.11")), size = 5, hjust = 0) +
+  annotate("text", x = -0.4, y = 0.8, label = "y = 0.39x + 0.07", size = 6, hjust = 0) +
+  annotate("text", x = -0.4, y = 0.7, label = "p-value = 0.004", size = 6, hjust = 0) +
+  annotate("text", x = -0.4, y = 0.6, label = expression(paste(R^2," = 0.11")), size = 6, hjust = 0) +
+  annotate("text", x = 0.8, y = -0.35, label = "(a", size = 8) +
   theme_bw() +
   theme(panel.grid = element_blank(),
-        text = element_text(size = 16, color = "black"),
-        axis.text.x = element_text(size = 16, color = "black"),
-        axis.text.y = element_text(size = 16, color = 'black'),
+        text = element_text(size = 18, color = "black"),
+        axis.text.x = element_text(size = 18, color = "black"),
+        axis.text.y = element_text(size = 18, color = 'black'),
         legend.title.align = 0.5,
-        legend.position = c(0.1,0.3))
-
-ggplot(data = temp_trends_noOutliers, aes(x = normalized_atemp_slope, y = normalized_wtemp_slope)) +
-  geom_abline(slope = 1, linetype = 'longdash') +
-  geom_hline(yintercept = 0, color = "black") +
-  geom_vline(xintercept = 0, color ="black") +
-  geom_point(shape = 21, size = 3, aes(fill = factor(Region))) +
-  scale_fill_manual(values = cols) +
-  ylab(expression(Normalized~Annual~Water~Temp.~Trend~("%"~yr^-1))) +
-  xlab(expression(Normalized~Annual~Atmo~Temp.~Trend~("%"~yr^-1))) +
-  labs(fill = "Region") +
-  scale_y_continuous(breaks = seq(-0.4,0.8,0.2), limits = c(-0.4,0.8)) +
-  scale_x_continuous(breaks = seq(-0.4,0.8,0.2), limits = c(-0.4,0.8)) +
-  annotate("text", x = -0.4, y = 0.8, label = "y = 0.44x + 0.07", size = 5, hjust = 0) +
-  annotate("text", x = -0.4, y = 0.7, label = "p-value < 0.001", size = 5, hjust = 0) +
-  annotate("text", x = -0.4, y = 0.6, label = expression(paste(R^2," = 0.20")), size = 5, hjust = 0) +
-  theme_bw() +
-  theme(panel.grid = element_blank(),
-        text = element_text(size = 16, color = "black"),
-        axis.text.x = element_text(size = 16, color = "black"),
-        axis.text.y = element_text(size = 16, color = 'black'),
-        legend.title.align = 0.5,
-        legend.position = c(0.1,0.3))
+        legend.position = c(0.11,0.34))
 
 sum(temp_trends$atemp_slope > temp_trends$wtemp_slope) # 40 out of 70 (57%)
-sum(temp_trends$atemp_slope < temp_trends$wtemp_slope) # 30 out of 70 (43%)
+sum(temp_trends$atemp_slope < temp_trends$wtemp_slope) # 29 out of 70 (41%)
 sum(temp_trends$normalized_atemp_slope > temp_trends$normalized_wtemp_slope) # 42 out of 70 (60%)
 sum(temp_trends$normalized_atemp_slope < temp_trends$normalized_wtemp_slope) # 27 out of 70 (39%)
 sum(temp_trends$p.val.x < 0.05) # water temp: 20 out of 70
@@ -690,7 +628,9 @@ precipQ_trends <- merge(precipQ_trends, hw_site, by = "site_no")
 
 anova_precip <- aov(precip_slope~Region, data = precipQ_trends)
 summary(anova_precip)
-TukeyHSD(anova_precip)
+precip_anova_region <- TukeyHSD(anova_precip)
+precip_anova_region <- as.data.frame(precip_anova_region$Region)
+precip_anova_region[precip_anova_region$`p adj` < 0.05,]
 ggplot(precipQ_trends, aes(x=Region, y = precip_slope)) +
   geom_boxplot() + theme_bw() +
   ylab(expression(Annual~Mean~Precip.~Trend~(mm~yr^-1)))
@@ -704,54 +644,55 @@ precipQ_trends %>%
   summarise(Mean = mean(Q_slope),
             SD = sd(Q_slope))
 
-summary(lm(Q_slope~precip_slope, data = precipQ_trends))
-
-ggplot(data = precipQ_trends, aes(x = precip_slope, y = Q_slope)) +
-  geom_hline(yintercept = 0, color = "black") +
-  geom_vline(xintercept = 0, color ="black") +
-  geom_point(shape = 21, size = 3, aes(fill = factor(Region))) +
-  stat_smooth(method = 'lm', se = FALSE) +
-  scale_fill_manual(values = cols) +
-  ylab(expression(Annual~Mean~Discharge~Trend~(m^3~s^-1~yr^-1))) +
-  xlab(expression(Annual~Mean~Precip.~Trend~(mm~yr^-1))) +
-  labs(fill = "Region") +
-  scale_y_continuous(breaks = seq(-8,3,1), limits = c(-8,3)) +
-  scale_x_continuous(breaks = seq(-30,30,5), limits = c(-30,30)) +
-  annotate("text", x = -30, y = 3, label = "y = 0.08x - 0.23", size = 5, hjust = 0) +
-  annotate("text", x = -30, y = 2.25, label = "p-value < 0.001", size = 5, hjust = 0) +
-  annotate("text", x = -30, y = 1.5, label = expression(paste(R^2," = 0.22")), size = 5, hjust = 0) +
-  theme_bw() +
-  theme(panel.grid = element_blank(),
-        text = element_text(size = 16, color = "black"),
-        axis.text.x = element_text(size = 16, color = "black"),
-        axis.text.y = element_text(size = 16, color = 'black'),
-        legend.title.align = 0.5,
-        legend.position = c(0.9,0.3))
+# summary(lm(Q_slope~precip_slope, data = precipQ_trends))
+# 
+# ggplot(data = precipQ_trends, aes(x = precip_slope, y = Q_slope)) +
+#   geom_hline(yintercept = 0, color = "black") +
+#   geom_vline(xintercept = 0, color ="black") +
+#   geom_point(shape = 21, size = 3, aes(fill = factor(Region))) +
+#   stat_smooth(method = 'lm', se = FALSE) +
+#   scale_fill_manual(values = cols) +
+#   ylab(expression(Annual~Mean~Discharge~Trend~(m^3~s^-1~yr^-1))) +
+#   xlab(expression(Annual~Mean~Precip.~Trend~(mm~yr^-1))) +
+#   labs(fill = "Region") +
+#   scale_y_continuous(breaks = seq(-8,3,1), limits = c(-8,3)) +
+#   scale_x_continuous(breaks = seq(-30,30,5), limits = c(-30,30)) +
+#   annotate("text", x = -30, y = 3, label = "y = 0.08x - 0.23", size = 5, hjust = 0) +
+#   annotate("text", x = -30, y = 2.25, label = "p-value < 0.001", size = 5, hjust = 0) +
+#   annotate("text", x = -30, y = 1.5, label = expression(paste(R^2," = 0.22")), size = 5, hjust = 0) +
+#   theme_bw() +
+#   theme(panel.grid = element_blank(),
+#         text = element_text(size = 16, color = "black"),
+#         axis.text.x = element_text(size = 16, color = "black"),
+#         axis.text.y = element_text(size = 16, color = 'black'),
+#         legend.title.align = 0.5,
+#         legend.position = c(0.9,0.3))
 
 summary(lm(normalized_Q_slope~normalized_precip_slope, data = precipQ_trends))
 
-ggplot(data = precipQ_trends, aes(x = normalized_precip_slope, y = normalized_Q_slope)) +
+Fig4b <- ggplot(data = precipQ_trends, aes(x = normalized_precip_slope, y = normalized_Q_slope)) +
+  geom_abline(slope = 1, linetype = 'longdash') +
   geom_hline(yintercept = 0, color = "black") +
   geom_vline(xintercept = 0, color ="black") +
-  geom_point(shape = 21, size = 3, aes(fill = factor(Region))) +
-  stat_smooth(method = 'lm', se = F) +
+  stat_smooth(method = 'lm', se = F, color = 'red') +
+  geom_point(shape = 21, size = 4, aes(fill = factor(Region))) +
   scale_fill_manual(values = cols) +
-  ylab(expression(Normalized~Annual~Mean~Discharge~Trend~("%"~yr^-1))) +
+  ylab(expression(atop(Normalized~Annual,
+                       Mean~Discharge~Trend~("%"~yr^-1)))) +
   xlab(expression(Normalized~Annual~Total~Precip.~Trend~("%"~yr^-1))) +
   labs(fill = "Region") +
   scale_y_continuous(breaks = seq(-4,2,1), limits = c(-4,2)) +
   scale_x_continuous(breaks = seq(-4,2,1), limits = c(-4,2)) +
-  annotate("text", x = -4, y = 2, label = "y = 0.74x - 0.22", size = 5, hjust = 0) +
-  annotate("text", x = -4, y = 1.6, label = "p-value < 0.001", size = 5, hjust = 0) +
-  annotate("text", x = -4, y = 1.2, label = expression(paste(R^2," = 0.28")), size = 5, hjust = 0) +
+  annotate("text", x = -4, y = 2, label = "y = 0.74x - 0.22", size = 6, hjust = 0) +
+  annotate("text", x = -4, y = 1.5, label = "p-value < 0.001", size = 6, hjust = 0) +
+  annotate("text", x = -4, y = 1.0, label = expression(paste(R^2," = 0.28")), size = 6, hjust = 0) +
+  annotate("text", x = 2, y = -3.75, label = "(b", size = 8) +
   theme_bw() +
   theme(panel.grid = element_blank(),
-        text = element_text(size = 16, color = "black"),
-        axis.text.x = element_text(size = 16, color = "black"),
-        axis.text.y = element_text(size = 16, color = 'black'),
-        legend.title.align = 0.5,
-        legend.position = c(0.15,0.2)) +
-  guides(fill=guide_legend(ncol=2))
+        text = element_text(size = 18, color = "black"),
+        axis.text.x = element_text(size = 18, color = "black"),
+        axis.text.y = element_text(size = 18, color = 'black'),
+        legend.position = "none")
 
 sum(precipQ_trends$p.val.y < 0.05) # 10 stat sig. discharge trends
 test <- precipQ_trends[precipQ_trends$p.val.y < 0.05,]
@@ -765,40 +706,30 @@ temp_precipQ_trends <- merge(annual_mean_wtemp, annual_mean_Q, by = c("site_no",
 
 summary(lm(NormalizedAnnualMeanWtemp~NormalizedAnnualMeanQ, data = temp_precipQ_trends))
 
-p1 <- ggplot(data = temp_precipQ_trends, aes(x = NormalizedAnnualMeanQ, y = NormalizedAnnualMeanWtemp)) +
+Fig4c <- ggplot(data = temp_precipQ_trends, aes(x = NormalizedAnnualMeanQ, y = NormalizedAnnualMeanWtemp)) +
   geom_hline(yintercept = 0, color = "black") +
   geom_vline(xintercept = 0, color ="black") +
-  geom_point(alpha = 0.3) +
+  geom_point(alpha = 0.2, size = 2) +
   stat_smooth(method = 'lm', color = "red", se = F) +
   xlab("Normalized Annual Mean Q (%)") +
-  ylab("Normalized Annual Mean Water Temp. (%)") +
+  ylab(expression(atop(Normalized~Annual,
+                       Mean~Water~Temp.~("%")))) +
   scale_x_continuous(breaks = seq(-100,350,50), limits = c(-100, 350)) +
   scale_y_continuous(breaks = seq(-25,30,5), limits = c(-25, 30)) +
-  annotate("text", x = 200, y = 30, label = "y = -0.037x - 0.033", size = 5, hjust = 0) +
-  annotate("text", x = 200, y = 26, label = "p-value < 0.001", size = 5, hjust = 0) +
-  annotate("text", x = 200, y = 22, label = expression(paste(R^2," = 0.08")), size = 5, hjust = 0) +
+  annotate("text", x = 200, y = 30, label = "y = -0.037x - 0.033", size = 6, hjust = 0) +
+  annotate("text", x = 200, y = 25, label = "p-value < 0.001", size = 6, hjust = 0) +
+  annotate("text", x = 200, y = 20, label = expression(paste(R^2," = 0.08")), size = 6, hjust = 0) +
+  annotate("text", x = 350, y = -23.5, label = "(c", size = 8) +
   theme_bw() +
   theme(panel.grid = element_blank(),
-        text = element_text(size = 16, color = "black"),
-        axis.text.x = element_text(size = 16, color = "black"),
-        axis.text.y = element_text(size = 16, color = 'black'))
-
-dens1 <- ggplot(temp_precipQ_trends, aes(x = NormalizedAnnualMeanQ)) +
-  geom_density() +
-  theme_void() +
-  theme(legend.position = "none")
-dens2 <- ggplot(temp_precipQ_trends, aes(x = NormalizedAnnualMeanWtemp)) +
-  geom_density() +
-  theme_void() +
-  theme(legend.position = "none") +
-  coord_flip()
+        text = element_text(size = 18, color = "black"),
+        axis.text.x = element_text(size = 18, color = "black"),
+        axis.text.y = element_text(size = 18, color = 'black'))
 
 library(ggpubr)
-library(patchwork)
 
-# width = 750 height = 600
-dens1 + plot_spacer() + p1 + dens2 +
-  plot_layout(ncol = 2, nrow = 2, widths = c(5,1), heights = c(1,5))
+# width = 700 height = 1500
+ggarrange(Fig4a,Fig4b,Fig4c, ncol = 1, align = 'v')
 
 station_details_70sites <- station_details[station_details$site_no %in% temp_trends$site_no,]
 
