@@ -8,7 +8,7 @@ The analysis flows as follows:
      - [USGS Daily Data-Value Qualification Codes](https://help.waterdata.usgs.gov/codes-and-parameters/instantaneous-value-qualification-code-uv_rmk_cd)
      - [USGS Daily Data-Value Status Codes](https://help.waterdata.usgs.gov/codes-and-parameters/instantaneous-and-daily-value-status-codes)
 
-   - This part of the analysis identifies 131 USGS stations that have the water temperature data availability. For those sites, station level data is added to the `lat_long` file after getting exported as a .csv file. This additional information identifies the Stahler Stream Order, position in landscape relative to a reservoir, and drainage area (mi2). See the `Station_Details` file.
+   - This part of the analysis identifies 131 USGS stations that have the water temperature data availability. For those sites, station level data is added to the `lat_long` file after getting exported as a .csv file. This additional information identifies the Stahler Stream Order, position in landscape relative to a reservoir, and drainage area (mi<sup>2</sup>). See the `Station_Details` file.
      - Stream Order
      
        - values come from the [USGS NHDPlus High Resolution service, a part of The National Map](https://www.usgs.gov/core-science-systems/ngp/national-hydrography/nhdplus-high-resolution) (data refreshed as of August 2020) which was accessed using ESRI ArcMap ArcGIS server https://hydro.nationalmap.gov/arcgis/services and the layer used was 'FlowDirection'. 
