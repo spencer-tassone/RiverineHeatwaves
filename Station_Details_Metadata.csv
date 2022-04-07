@@ -1,0 +1,11 @@
+Variable,Description
+station_nm,Station name issued by the USGS
+site_no,Site number issued by the USGS. All sites numbers < 10301500 (< line 47) start with a zero which gets dropped in csv file format. 
+lat,Site latitude provided by the USGS. Values are in decimal degrees
+long,Site longitude provided by the USGS. Values are in decimal degrees
+state,United States - state name where the site is located
+STUSAB,United States - two letter state name abbreviation 
+StreamOrder,Stahler stream order for each site as determined by the USGS NHDPlus High Resolution geospatial database using ESRI ArcMap version 10.8.
+Reservoir,"Site position relative to a reservoir. The categorical values can either be 'Above', 'Below', or 'None' indicating if the site is above a reserovir, below a reservoir, or free-flowing with no reservoir present."
+DrainageArea_km2,Watershed drainage area for each site in units of square kilometers (km2).
+altitude_m_NAVD88,Altitude of each site in meters based on the North American Vertical Datum of 1988 (NAVD88).
