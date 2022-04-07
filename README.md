@@ -1,8 +1,16 @@
 # Riverine Heatwaves
 
+Increasing heatwave frequency in streams and rivers of the United States. This work will be submitted for publication to Limnology & Oceanorgraphy Letters in April 2022.
+
+Authors: Spencer J. Tassone*, Alice F. Besterman, Cal D. Buelo, Dat Ha, Jonathan A. Walter, Michael L. Pace
+
+*Contact author: sjt7jc@virginia.edu
+
+
+## Background
 Analysis of riverine heatwaves throghout the USA between 1996-2021 using United States Geological Survey (USGS) data. Examining how heatwaves vary based on stream order, discharge, region, season, time, and position in landscape relative to a reservoir.
 
-The analysis flows as follows:
+## The analysis flows as follows:
 1. DataPull.R
    - This file pulls the daily mean water temperature and discharge (Q) data from USGS using the 'dataRetrieval' R package, then cleans the datasets according to the:
      - [USGS Daily Data-Value Qualification Codes](https://help.waterdata.usgs.gov/codes-and-parameters/instantaneous-value-qualification-code-uv_rmk_cd)
