@@ -657,3 +657,6 @@ library(ggpubr)
 
 # width = 700 height = 1500
 ggarrange(Fig4a,Fig4b,Fig4c, ncol = 1, align = 'v')
+
+setwd("F:/School/USGSdata/GitHub")
+write.csv(Q_daily_dat,'Q_daily_dat.csv')
