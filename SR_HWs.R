@@ -77,8 +77,6 @@ for(i in 1:length(aa)){
   }
 }
 
-# write.csv(wtemp_trends, 'WaterTemp_LongTermTrends.csv')
-
 zz <- unique(annual_mean_Q$site_no)
 for(i in 1:length(zz)){
   curDat = annual_mean_Q[annual_mean_Q$site_no == zz[i],]
@@ -104,9 +102,6 @@ for(i in 1:length(zz)){
     Q_trends = rbind(Q_trends, cur_Q_trends)
   }
 }
-
-View(wtemp_trends)
-View(Q_trends)
 
 sum(wtemp_trends$wtemp_slope > 0) # 65
 sum(wtemp_trends$p.val <= 0.05) # 20
@@ -163,7 +158,7 @@ round(max(saveDatWarm$intensity_max_relThresh),digits = 1) # 9.0 degrees C
 round(mean(saveDatWarm$intensity_max),digits = 1) # 3.8 degrees C
 round(max(saveDatWarm$intensity_max),digits = 1) # 12.7 degrees C
 
-### Count number of HW and CS events per station
+### Count number of heatwave and coldspell events per station
 
 HW_event_station <- as.data.frame(table(saveDatWarm$Station))
 colnames(HW_event_station)[1]  <- "site_no"
@@ -182,38 +177,6 @@ summary(hw_cs_mod)
 cols <- c("1" = "#ffffd9", "3" = "#edf8b1", "4" = "#c7e9b4", "5" = "#7fcdbb",
           "6" = "#41b6c4", "7" = "#1d91c0", "8" = "#225ea8", "9" = "#0c2c84")
 cols2 <- c("Below" = "#edf8b1", "Above" = "#7fcdbb", "None" = "#2c7fb8")
-
-hw_alt_mod <- lm(hw_cs_site$TotalEvents_HW~hw_cs_site$altitude_m_NAVD88)
-summary(hw_alt_mod)
-
-ggplot(data = hw_cs_site, aes(x = altitude_m_NAVD88, y = TotalEvents_HW)) +
-  geom_point(shape = 16, size = 2, alpha = 0.7, color = "black") +
-  stat_smooth(method = 'lm') +
-  labs(x = 'NAVD88 Altitude (m)',
-       y = 'Total HW Events (1996-2021)') +
-  scale_y_continuous(breaks = seq(0,80,10), limits = c(0,80)) +
-  scale_x_continuous(breaks = seq(0,2800,250), limits = c(0,2800)) +
-  annotate("text", x = 2000, y = 12, label = "y = -0.006x + 59.2", size = 5) +
-  annotate("text", x = 2000, y = 6, label = "p-value = 0.001", size = 5) +
-  annotate("text", x = 2000, y = 0, label = expression(paste(R^2," = 0.15")), size = 5) +
-  theme_bw() +
-  theme(panel.grid = element_blank(),
-        text = element_text(size = 16),
-        axis.text.x = element_text(size = 16, color = "black"),
-        axis.text.y = element_text(size = 16, color = "black"))
-
-ggplot(data = hw_cs_site, aes(x = log10(DrainageArea_km2), y = TotalEvents_HW)) +
-  geom_point(shape = 16, size = 2, alpha = 0.4) +
-  stat_smooth(method = 'lm') +
-  labs(x = expression(log[10]~Drainage~Area~(km^2)),
-       y = 'Total HW Events (1996-2021)') +
-  scale_y_continuous(breaks = seq(0,80,10), limits = c(0,80)) +
-  # scale_x_continuous(breaks = seq(0,2800,250), limits = c(0,2800)) +
-  theme_bw() +
-  theme(panel.grid = element_blank(),
-        text = element_text(size = 16),
-        axis.text.x = element_text(size = 16, color = "black"),
-        axis.text.y = element_text(size = 16, color = "black"))
 
 hw_cs_site %>%
   group_by(Reservoir) %>%
@@ -288,28 +251,6 @@ ggplot(data = hw_cs_site, aes(x = Reservoir, y = TotalEvents_HW)) +
         text = element_text(size = 16, color = "black"),
         axis.text.x = element_text(size = 16, color = "black"),
         axis.text.y = element_text(size = 16, color = 'black'))
-
-hw_anova <- aov(TotalEvents_HW~factor(StreamOrder), data = hw_cs_site)
-summary(hw_anova)
-
-ggplot(data = hw_cs_site, aes(x = factor(StreamOrder), y = TotalEvents_HW)) +
-  geom_boxplot(outlier.shape = NA) +
-  geom_jitter(shape=16, alpha = 0.4, size = 2, position=position_jitter(0.1)) +
-  labs(x = 'Stahler Stream Order',
-       y = 'Total HW Events (1996-2021)') +
-  scale_y_continuous(breaks = seq(0,80,10)) +
-  coord_cartesian(ylim = c(0, 80)) +
-  theme_bw() +
-  theme(panel.grid = element_blank(),
-        text = element_text(size = 16, color = "black"),
-        axis.text.x = element_text(size = 16, color = "black"),
-        axis.text.y = element_text(size = 16, color = 'black'))
-
-hw_anova <- aov(TotalEvents_HW~Region, data = hw_cs_site)
-summary(hw_anova)
-hw_anova_region <- TukeyHSD(hw_anova)
-hw_anova_region <- as.data.frame(hw_anova_region$Region)
-hw_anova_region[hw_anova_region$`p adj` < 0.05,]
 
 library(dplyr)
 library(rstatix)
@@ -403,7 +344,7 @@ hw %>%
         axis.text.y = element_text(size = 16, color = 'black'),
         legend.background = element_blank())
 
-### Mean residual Q (cms) during heatwave & coldspell events
+### Mean residual Q (cms) during heatwaves
 
 ranges <- mapply(function(x, y, z)  seq.Date(y, z, 1), hw$site_no,  hw$date_start, hw$date_end, USE.NAMES = TRUE)
 hw$MeanResidaulQ <- mapply(function(a, b)
@@ -936,9 +877,6 @@ hw_reservoir_output <- hw_reservoir_output %>% arrange(-desc(p.val))
 hw_reservoir_output$Rank <- seq(1,9,1)
 
 ### 15% False Discovery Rate (see link for details: http://www.biostathandbook.com/multiplecomparisons.html)
-### using 10% FDR we had 7 stat. sig. results = 7 * 0.1 = 0.7 tests were false positives
-### using 15% FDR we had 9 stat. sig. results = 9 * 0.15 = 1.35 tests were false positives & largest raw p-value = 0.018
-### using 20% FDR we had 12 stat. sig. results = 12 * 0.2 = 2.4 tests were false positives & largest raw p-value = 0.048
 
 fdr_table <- data.frame(matrix(ncol = 3, nrow = 75))
 x <- c("TestType", "Rank", "FDR_0.15")
@@ -972,7 +910,7 @@ hw_meanResidQ <- hw %>%
             Median_ResidaulQ_HW = round(median(MeanResidaulQ, na.rm = TRUE),digits = 1),
             SD_HW = round(sd(MeanResidaulQ, na.rm = TRUE),digits = 1))
 
-### HW & CS categories
+### Heatwave categories
 
 saveCatWarm$year <- year(saveCatWarm$peak_date)
 hw_cat_temp <- saveCatWarm %>% count(category, year, sort = TRUE)
@@ -999,13 +937,19 @@ hw_cat_total <- hw_cat_total[,c(1:3,6)]
 hw_cat_total %>%
   group_by(category) %>%
   summarise(TotalEvents = sum(TotalEvents_HW),
-            FracTotEvents = round(((TotalEvents/3985)*100),digits = 2))
+            FracTotEvents = round(((TotalEvents/3984)*100),digits = 2))
 
 test <- saveCatWarm
 colnames(test)[12] <- "site_no"
 test <- merge(test, station_details, by = "site_no")
 test <- merge(test, usa_region, by = "STUSAB")
 test <- test[,c(1:21,32:34)]
+test_extreme <- test[test$category == 'IV Extreme',] # 13 events
+test_severe <- test[test$category == 'III Severe',]
+test_severe <- test_severe %>% filter(rank(desc(i_max))<=26) # need 26 events to add to the 13 cat 4 events to get 39 total aka top 1% most intense heatwaves
+test <- rbind(test_extreme, test_severe)
+test$month <- month(test$peak_date)
+table(test$month)
 
 Fig2a <- ggplot(data = hw_cat_total) +
   geom_col(aes(x = as.numeric(year), y = TotalEvents_HW,
@@ -1105,6 +1049,8 @@ hw_q$NormalizedAnnualMeanQ <- round(((hw_q$AnnualMeanQ-hw_q$LongTermMeanQ)/hw_q$
 
 test <- hw_q
 test2 <- merge(hw_q, hw_cs_site, by = "site_no")
+round(mean(test2$TotalEvents_HW.x), digits = 0) # average 2 HW events per year
+round(sd(test2$TotalEvents_HW.x), digits = 0) # standard dev. of 2 HW events per year
 
 library(ggridges)
 
@@ -1213,4 +1159,3 @@ Fig3b <- ggplot(data = hw_q, aes(x = AnnualMeanQ, y = TotalEvents_HW)) +
 
 # width = 600 height = 900
 ggarrange(Fig3a,Fig3b, ncol = 1, align = 'v')
-
