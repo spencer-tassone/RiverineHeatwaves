@@ -661,4 +661,5 @@ ggarrange(Fig4a,Fig4b,Fig4c, ncol = 1, align = 'v')
 setwd("F:/School/USGSdata/GitHub")
 station_details_70sites <- station_details[station_details$site_no %in% temp_trends$site_no,]
 write.csv(station_details_70sites, '70station_details.csv')
+write.csv(wmet,'Wtemp_daily_dat.csv')
 write.csv(Q_daily_dat,'Q_daily_dat.csv')
