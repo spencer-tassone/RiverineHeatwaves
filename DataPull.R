@@ -30,7 +30,7 @@ full_station_list <- do.call(rbind.data.frame, result)
 full_station_list$site_no_chr <- as.character(full_station_list$site_no)
 full_station_list$Order <- seq(from = 1, to = nrow(full_station_list), by = 1)
 full_station_list <- full_station_list[!duplicated(full_station_list$site_no_chr),] # All available USGS stations with daily mean water temperature data between 1996-2020 
-rm(list=setdiff(ls(), "full_station_list")) # 284 stations
+rm(list=setdiff(ls(), "full_station_list")) # 287 stations
 # write.csv(full_station_list, 'full_station_list.csv')
 
 ### Extract daily mean water temperature from full_station_list. Also takes a while to run ~1 hour
@@ -45,7 +45,7 @@ dat_final_large <- renameNWISColumns(dat_final_large)
 Wtemp_daily <- dat_final_large[,1:5]
 startDate <- as.Date("1996-01-01")
 endDate <- as.Date("2021-12-31")
-full_ts <- as.data.frame(rep(seq(from = startDate, to = endDate, by = "day"),times = 284))
+full_ts <- as.data.frame(rep(seq(from = startDate, to = endDate, by = "day"),times = 287))
 colnames(full_ts)[1] <- "Date"
 full_site <- as.data.frame(rep(unique(Wtemp_daily$site_no),times = 9497))
 colnames(full_site)[1] <- "site_no"
@@ -106,33 +106,11 @@ lat_long <- keep_sites_temp %>%
   summarise(lat = mean(dec_lat_va),
             lon = mean(dec_long_va))
 
-### Add state name and abbreviation to lat_long
-# usa <- geojson_read(
-#   "http://eric.clst.org/assets/wiki/uploads/Stuff/gz_2010_us_040_00_500k.json", 
-#   what = "sp"
-# )
-# 
-# for (i in 1:nrow(lat_long)) {
-#   coords <- c(lat_long$lon[i], lat_long$lat[i])
-#   if(any(is.na(coords))) next
-#   point <- sp::SpatialPoints(
-#     matrix(
-#       coords,
-#       nrow = 1
-#     )
-#   )
-#   sp::proj4string(point) <- sp::proj4string(usa)
-#   polygon_check <- sp::over(point, usa)
-#   lat_long$state[i] <- as.character(polygon_check$NAME)
-# }
-# 
-# lat_long$STUSAB <- state.abb[match(lat_long$state, state.name)]
-# lat_long <- lat_long[,1:3]
 x <- c("site","lat","lon")
 colnames(lat_long) <- x
 
 setwd("F:/School/USGSdata/GitHub")
-# write.csv(lat_long, '82USGSsites_26YearWTemp_LatLong.csv') # in the csv be sure to remove first column which is a sequence of 1-82.
+# write.csv(lat_long, 'Station_Details.csv') # in the csv be sure to remove first column which is a sequence of 1-82.
 
 station_list <-  full_station_list[(full_station_list$site_no %in% Wtemp_daily$site_no),]
 station_list <- station_list[,c(1:3,5:12)]
@@ -146,16 +124,14 @@ station_list$altitude_m_NAVD88 <- round(station_list$altitude_ft_NAVD88 * 0.3048
 station_details <- read.csv('Station_Details.csv')
 station_details$site_no <- as.character(station_details$site_no)
 station_details <- station_details %>%
-  mutate(site_no = ifelse(row_number()<=86, paste0("0", site_no), site_no))
-station_details[132,2] <- "420451121510000"
-station_details$DrainageArea_km2 <- station_details$DrainageArea_mi2 * 2.59
+  mutate(site_no = ifelse(row_number()<=51, paste0("0", site_no), site_no))
+station_details[82,2] <- "420451121510000"
 
 station_details <- station_details[station_details$site_no %in% station_list$site_no,]
-station_details <- merge(station_details, station_list, by = "site_no")
-station_details <- station_details[,c(25,1,3,4,8:23,36)]
 station_details <- station_details[station_details$site_no %in% Wtemp_daily$site_no,]
 
-# Grab meterological data to build water temperature regression with
+# Grab meteorological data from Daymet web services to build water temperature multiple linear regressions
+# https://daac.ornl.gov/
 # https://www.nature.com/articles/s41597-021-00973-0#code-availability
 library(daymetr)
 
@@ -395,33 +371,7 @@ cols <- c("NE" = "#d73027", "ENC" = "#f46d43", "SE" = "#ffffbf",
           "WNC" = "#e0f3f8", "South" = "#abd9e9","SW" = "#74add1",
           "NW" = "#4575b4","West" = "#313695","Alaska" = "#a50026")
 
-summary(lm(wtemp_slope~atemp_slope, data = temp_trends))
-
-# width = 700 height = 550
-# ggplot(data = temp_trends, aes(x = atemp_slope, y = wtemp_slope)) +
-#   geom_abline(slope = 1, linetype = 'longdash') +
-#   geom_hline(yintercept = 0, color = "black") +
-#   geom_vline(xintercept = 0, color ="black") +
-#   geom_point(shape = 21, size = 3, aes(fill = factor(Region))) +
-#   scale_fill_manual(values = cols) +
-#   ylab(expression(Annual~Mean~Water~Temp.~Trend~(degree*C~yr^-1))) +
-#   xlab(expression(Annual~Mean~Atmo.~Temp.~Trend~(degree*C~yr^-1))) +
-#   labs(fill = "Region") +
-#   scale_y_continuous(breaks = seq(-0.06,0.06,0.02), limits = c(-0.07,0.07)) +
-#   scale_x_continuous(breaks = seq(-0.06,0.06,0.02), limits = c(-0.07,0.07)) +
-#   annotate("text", x = -0.07, y = 0.06, label = "y = 0.28x + 0.01", size = 5, hjust = 0) +
-#   annotate("text", x = -0.07, y = 0.05, label = "p-value = 0.11", size = 5, hjust = 0) +
-#   annotate("text", x = -0.07, y = 0.04, label = expression(paste(R^2," = 0.04")), size = 5, hjust = 0) +
-#   theme_bw() +
-#   theme(panel.grid = element_blank(),
-#         text = element_text(size = 16, color = "black"),
-#         axis.text.x = element_text(size = 16, color = "black"),
-#         axis.text.y = element_text(size = 16, color = 'black'),
-#         legend.title.align = 0.5,
-#         legend.position = c(0.1,0.3))
-
 summary(lm(normalized_wtemp_slope~normalized_atemp_slope, data = temp_trends))
-# summary(lm(normalized_wtemp_slope~normalized_atemp_slope, data = temp_trends_noOutliers))
 
 Fig4a <- ggplot(data = temp_trends, aes(x = normalized_atemp_slope, y = normalized_wtemp_slope)) +
   geom_abline(slope = 1, linetype = 'longdash') +
@@ -452,9 +402,9 @@ sum(temp_trends$atemp_slope > temp_trends$wtemp_slope) # 40 out of 70 (57%)
 sum(temp_trends$atemp_slope < temp_trends$wtemp_slope) # 29 out of 70 (41%)
 sum(temp_trends$normalized_atemp_slope > temp_trends$normalized_wtemp_slope) # 42 out of 70 (60%)
 sum(temp_trends$normalized_atemp_slope < temp_trends$normalized_wtemp_slope) # 27 out of 70 (39%)
-sum(temp_trends$p.val.x < 0.05) # water temp: 20 out of 70
+sum(temp_trends$p.val.x < 0.05) # water temp: 21 out of 70
 sum(temp_trends$wtemp_slope > 0) # water temp: 65 out of 70
-sum(temp_trends$p.val.x < 0.05 & temp_trends$wtemp_slope > 0) # water temp: 19 out of 70
+sum(temp_trends$p.val.x < 0.05 & temp_trends$wtemp_slope > 0) # water temp: 20 out of 70
 sum(temp_trends$p.val.y < 0.05) # air temp: 20 out of 70
 sum(temp_trends$atemp_slope > 0) # air temp: 67 out of 70
 sum(temp_trends$p.val.y < 0.05 & temp_trends$atemp_slope > 0) # air temp: 20 out of 70
@@ -480,6 +430,7 @@ Q_daily_dat <- Q_daily_dat[,c(1:3,6,5)]
 
 startDate <- as.Date("1996-01-01")
 endDate <- as.Date("2021-12-31")
+unique(Q_daily_dat$site_no) # 61 out of 70 sites have concurrent daily discharge data available
 full_ts <- as.data.frame(rep(seq(from = startDate, to = endDate, by = "day"),times = 61)) # 61 out of 70 sites have concurrent daily discharge data available
 colnames(full_ts)[1] <- "Date"
 full_site <- as.data.frame(rep(unique(Q_daily_dat$site_no),times = 9497))
@@ -644,30 +595,6 @@ precipQ_trends %>%
   summarise(Mean = mean(Q_slope),
             SD = sd(Q_slope))
 
-# summary(lm(Q_slope~precip_slope, data = precipQ_trends))
-# 
-# ggplot(data = precipQ_trends, aes(x = precip_slope, y = Q_slope)) +
-#   geom_hline(yintercept = 0, color = "black") +
-#   geom_vline(xintercept = 0, color ="black") +
-#   geom_point(shape = 21, size = 3, aes(fill = factor(Region))) +
-#   stat_smooth(method = 'lm', se = FALSE) +
-#   scale_fill_manual(values = cols) +
-#   ylab(expression(Annual~Mean~Discharge~Trend~(m^3~s^-1~yr^-1))) +
-#   xlab(expression(Annual~Mean~Precip.~Trend~(mm~yr^-1))) +
-#   labs(fill = "Region") +
-#   scale_y_continuous(breaks = seq(-8,3,1), limits = c(-8,3)) +
-#   scale_x_continuous(breaks = seq(-30,30,5), limits = c(-30,30)) +
-#   annotate("text", x = -30, y = 3, label = "y = 0.08x - 0.23", size = 5, hjust = 0) +
-#   annotate("text", x = -30, y = 2.25, label = "p-value < 0.001", size = 5, hjust = 0) +
-#   annotate("text", x = -30, y = 1.5, label = expression(paste(R^2," = 0.22")), size = 5, hjust = 0) +
-#   theme_bw() +
-#   theme(panel.grid = element_blank(),
-#         text = element_text(size = 16, color = "black"),
-#         axis.text.x = element_text(size = 16, color = "black"),
-#         axis.text.y = element_text(size = 16, color = 'black'),
-#         legend.title.align = 0.5,
-#         legend.position = c(0.9,0.3))
-
 summary(lm(normalized_Q_slope~normalized_precip_slope, data = precipQ_trends))
 
 Fig4b <- ggplot(data = precipQ_trends, aes(x = normalized_precip_slope, y = normalized_Q_slope)) +
@@ -711,7 +638,7 @@ Fig4c <- ggplot(data = temp_precipQ_trends, aes(x = NormalizedAnnualMeanQ, y = N
   geom_vline(xintercept = 0, color ="black") +
   geom_point(alpha = 0.2, size = 2) +
   stat_smooth(method = 'lm', color = "red", se = F) +
-  xlab("Normalized Annual Mean Q (%)") +
+  xlab("Normalized Annual Mean Discharge (%)") +
   ylab(expression(atop(Normalized~Annual,
                        Mean~Water~Temp.~("%")))) +
   scale_x_continuous(breaks = seq(-100,350,50), limits = c(-100, 350)) +
@@ -730,9 +657,3 @@ library(ggpubr)
 
 # width = 700 height = 1500
 ggarrange(Fig4a,Fig4b,Fig4c, ncol = 1, align = 'v')
-
-station_details_70sites <- station_details[station_details$site_no %in% temp_trends$site_no,]
-
-setwd("F:/School/USGSdata/GitHub")
-write.csv(station_details_70sites, '70station_details.csv')
-write.csv(Q_daily_dat,'Q_daily_dat.csv')
