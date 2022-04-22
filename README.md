@@ -8,7 +8,12 @@ Authors: Spencer J. Tassone*, Alice F. Besterman, Cal D. Buelo, Dat T. Ha, Jonat
 
 
 ## Background
-Analysis of riverine heatwaves throughout the USA between 1996-2021 using United States Geological Survey (USGS) data. Examining how heatwaves vary based on stream order, discharge, region, season, time, and position in landscape relative to a reservoir.
+River water temperature trends have been increasing since the 20th century. The drivers of these trends are related, in part, to increased diffusive vertical heat flux across the air-water surface from increasing atmospheric temperatures and alterations in water supply that increase advective heat fluxes. With projected climate warming, these heat fluxes are expected to intensify throughout the 21st century, increasing riverine water temperatures in most locations. 
+
+Rising water temperatures have spurred interest in anomalous extreme temperature events called heatwaves due to their potentially disproportionate impact. Positive trends in heatwave frequency, duration, and intensity have been documented in ocean, coastal, and lake ecosystems. Aquatic heatwaves have been linked to shifts in ecosystem metabolism, organism mortality (Till et al. 2019), and poor water quality. However, little is known regarding heatwaves in riverine ecosystems despite their low thermal inertia and evidence of warming.
+
+In this study we document the frequency, duration, and intensity of riverine heatwaves using in-situ water temperature measurements from 1996-2021 for sites located throughout the U.S. We also compare regional and seasonal patterns in heatwaves and test relationships between heatwave characteristics, atmospheric temperature, precipitation, discharge, stream order, and position relative to reservoirs.
+
 
 ## The analysis flows as follows:
 1. DataPull.R
