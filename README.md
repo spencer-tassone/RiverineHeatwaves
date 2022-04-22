@@ -1,6 +1,6 @@
 # Riverine Heatwaves
 
-Increasing heatwave frequency in streams and rivers of the United States. This work will be submitted for publication to Limnology & Oceanorgraphy Letters in April 2022.
+Increasing heatwave frequency in streams and rivers of the United States. This work was submitted for publication to Limnology & Oceanorgraphy Letters in April 2022.
 
 Authors: Spencer J. Tassone*, Alice F. Besterman, Cal D. Buelo, Dat T. Ha, Jonathan A. Walter, Michael L. Pace
 
