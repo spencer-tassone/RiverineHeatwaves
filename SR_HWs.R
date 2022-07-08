@@ -38,83 +38,140 @@ residualQ <- residualQ %>%
 
 ### Are there long-term trends in annual mean water temperature and discharge?
 
-annual_mean_wtemp <- Wtemp_daily_dat %>%
-  group_by(site_no, Year) %>%
-  summarise(annual_mean_wtemp = mean(corWtemp, na.rm = TRUE))
+Wtemp_daily_dat$Month <- month(Wtemp_daily_dat$Date)
+month_mean_wtemp <- Wtemp_daily_dat %>%
+  group_by(site_no, Year, Month) %>%
+  summarise(monthly_mean_wtemp = mean(corWtemp, na.rm = TRUE))
+wide_month_mean_wtemp <- month_mean_wtemp %>%
+  pivot_wider(names_from = site_no, values_from = monthly_mean_wtemp)
 
 residualQ$Year <- year(residualQ$Date)
-annual_mean_Q <- residualQ %>%
-  group_by(site_no, Year) %>%
+residualQ$Month <- month(residualQ$Date)
+month_mean_Q <- residualQ %>%
+  group_by(site_no, Year, Month) %>%
   summarise(MeanQ = mean(flow_cms, na.rm = TRUE))
-annual_mean_Q <- annual_mean_Q[!annual_mean_Q$site_no == "02423397",]
+month_mean_Q <- month_mean_Q[!month_mean_Q$site_no == "02423397",]
+wide_month_mean_Q <- month_mean_Q %>%
+  pivot_wider(names_from = site_no, values_from = MeanQ)
 
-library(Kendall)
-library(trend)
+library(wql) # Seasonal Kendall trend test for water temperature and discharge
+library(ggtext)
 
-aa <- unique(annual_mean_wtemp$site_no)
-for(i in 1:length(aa)){
-  curDat = annual_mean_wtemp[annual_mean_wtemp$site_no == aa[i],]
-  ts = ts(data = curDat[, 3],
-          frequency = 1,
-          start = min(curDat$Year),
-          end = max(curDat$Year))
-  ManKen = MannKendall(ts)
-  ss = sens.slope(ts, conf.level = 0.95)
-  p.val = ManKen$sl
-  slope = ss$estimates
-  lower95 = ss$conf.int[1]
-  upper95 = ss$conf.int[2]
-  site_no = aa[i]
-  cur_temp_time = data.frame(site_no = aa[i],
-                             wtemp_slope = round(slope, 3),
-                             upper95 = round(upper95, 3),
-                             lower95 = round(lower95, 3),
-                             p.val = round(p.val, 4))
-  if( i == 1){
-    wtemp_trends = cur_temp_time
-  } else{
-    wtemp_trends = rbind(wtemp_trends, cur_temp_time)
-  }
-}
+wtemp_ts = ts(data = wide_month_mean_wtemp[, 3:72],
+            start = c(1996,1),
+            end = c(2021,12),
+            frequency = 12)
+wtemp_seaken <- seaKen(wtemp_ts)
+wtemp_seaken <- wtemp_seaken %>%
+  data.frame() %>%
+  cbind(site_no = row.names(wtemp_seaken),.) %>%
+  mutate(Status = if_else(
+    p.value < 0.05, "sig", "not sig"))
+wtemp_seaken <- wtemp_seaken[,c(1:2,4:6)]
+colnames(wtemp_seaken) <- c("site_no","sen.slope.wtemp","p.value.wtemp","miss.wtemp","status.wtemp")
 
-zz <- unique(annual_mean_Q$site_no)
-for(i in 1:length(zz)){
-  curDat = annual_mean_Q[annual_mean_Q$site_no == zz[i],]
-  ts = ts(data = curDat[, 3],
-          frequency = 1,
-          start = min(curDat$Year),
-          end = max(curDat$Year))
-  ManKen = MannKendall(ts)
-  ss = sens.slope(ts, conf.level = 0.95)
-  p.val = ManKen$sl
-  slope = ss$estimates
-  lower95 = ss$conf.int[1]
-  upper95 = ss$conf.int[2]
-  site_no = zz[i]
-  cur_Q_trends = data.frame(site_no = site_no,
-                           Q_slope = round(slope, 3),
-                           upper95 = round(upper95, 3),
-                           lower95 = round(lower95, 3),
-                           p.val = round(p.val, 4))
-  if( i == 1){
-    Q_trends = cur_Q_trends
-  } else{
-    Q_trends = rbind(Q_trends, cur_Q_trends)
-  }
-}
+sum(wtemp_seaken$p.value <= 0.05) # 45 (MK = 20)
+sum(wtemp_seaken$sen.slope > 0) # 59 (MK = 65)
+sum(wtemp_seaken$sen.slope > 0 & wtemp_seaken$p.value <= 0.05) # 43 (MK = 19)
 
-sum(wtemp_trends$wtemp_slope > 0) # 65
-sum(wtemp_trends$p.val <= 0.05) # 20
-sum(wtemp_trends$p.val <= 0.05 & wtemp_trends$wtemp_slope > 0 ) # 19
-sum(Q_trends$Q_slope > 0) # 26
-sum(Q_trends$p.val <= 0.05) # 10
-sum(Q_trends$p.val <= 0.05 & Q_trends$Q_slope > 0) # 3
+Q_ts = ts(data = wide_month_mean_Q[, 3:53],
+              start = c(1996,1),
+              end = c(2021,12),
+              frequency = 12)
+Q_seaken <- seaKen(Q_ts)
+Q_seaken <- Q_seaken %>%
+  data.frame() %>%
+  cbind(site_no = row.names(Q_seaken),.) %>%
+  mutate(Status = if_else(
+    p.value < 0.05, "sig", "not sig"))
+Q_seaken <- Q_seaken[,c(1:2,4:6)]
+colnames(Q_seaken) <- c("site_no","sen.slope.Q","p.value.Q","miss.Q","status.Q")
 
-trends_wtemp_Q <- merge(wtemp_trends,Q_trends, by = "site_no", all = TRUE)
-test1 <- wtemp_trends[wtemp_trends$p.val <= 0.05,]
-test2 <- merge(test1, Q_trends, by = "site_no")
-trends_wtemp_Q <- merge(trends_wtemp_Q, station_details, by = "site_no")
-trends_wtemp_Q$Q_yes_no <- ifelse(is.na(trends_wtemp_Q$Q_slope),"no", "yes")
+sum(Q_seaken$p.value <= 0.05) # 25 (MK = 10)
+sum(Q_seaken$sen.slope > 0) # 24 (MK = 26)
+sum(Q_seaken$sen.slope > 0 & Q_seaken$p.value <= 0.05) # 8 (MK = 3)
+
+trends_wtemp_Q <- merge(wtemp_seaken,Q_seaken, by = "site_no", all = TRUE)
+
+usa_region <- data.frame(matrix(ncol = 2, nrow = 50))
+z <- c("STUSAB", "Region")
+colnames(usa_region) <- z
+usa_region$STUSAB <- c("IL","IN","KY","MO","OH","TN","WV",
+                       "IA","MI","MN","WI",
+                       "CT","DE","ME","MD","MA","NH","NJ","NY","PA","RI","VT",
+                       "ID","OR","WA",
+                       "AR","KS","LA","MS","OK","TX",
+                       "AL","FL","GA","NC","SC","VA",
+                       "AZ","CO","NM","UT",
+                       "CA","NV",
+                       "MT","NE","ND","SD","WY","AK","HI")
+usa_region$Region <- c("Central","Central","Central","Central","Central","Central","Central",
+                       "ENC","ENC","ENC","ENC",
+                       "NE","NE","NE","NE","NE","NE","NE","NE","NE","NE","NE",
+                       "NW","NW","NW",
+                       "South","South","South","South","South","South",
+                       "SE","SE","SE","SE","SE","SE",
+                       "SW","SW","SW","SW",
+                       "West","West",
+                       "WNC","WNC","WNC","WNC","WNC","Alaska","Hawaii")
+
+cols1 <- c("NE" = "#d73027", "ENC" = "#f46d43", "SE" = "#cfcf74",
+           "WNC" = "#bababa", "South" = "#abd9e9","SW" = "#74add1",
+           "NW" = "#4575b4","West" = "#313695","Alaska" = "#a50026")
+cols1 <- data.frame(Region = names(cols1), color = cols1)
+
+trends_wtemp_Q <- merge(trends_wtemp_Q,station_details, by ="site_no")
+trends_wtemp_Q <- merge(trends_wtemp_Q, usa_region, by = "STUSAB")
+trends_wtemp_Q <- merge(trends_wtemp_Q, cols1, by = "Region", all.x = TRUE)
+trends_wtemp_Q$site_no <- paste0("<span style=\"color: ", trends_wtemp_Q$color, "\">", trends_wtemp_Q$site_no, "</span>")
+trends_wtemp_Q$Region <- factor(trends_wtemp_Q$Region,
+                             levels = c("SE","South","SW","West","NE","ENC","WNC","NW","Alaska"))
+
+trends_wtemp_Q <- trends_wtemp_Q[order(trends_wtemp_Q$Region),]
+trends_wtemp_Q$site_no <- factor(trends_wtemp_Q$site_no, levels = unique(trends_wtemp_Q$site_no))
+
+wtemp_fig <- ggplot(data = trends_wtemp_Q, aes(x = site_no, y = sen.slope.wtemp)) +
+  geom_hline(yintercept = 0, linetype = 'longdash') +
+  geom_point(aes(fill = factor(status.wtemp)), shape = 21, size = 2) +
+  scale_fill_manual(name = "",
+                    labels = c("p-value > 0.05","p-value < 0.05"),
+                    values = c("white","black")) +
+  xlab("") +
+  ylab(expression(atop(Water~Temp.~Trend,(degree*C~yr^-1)))) +
+  scale_y_continuous(breaks = seq(-0.06,0.06,0.02), limits = c(-0.06,0.07)) +
+  theme_bw() +
+  theme(panel.grid.major = element_line(colour = "gray85",linetype="longdash",size=0.1),
+        text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, color = "black"),
+        axis.text.y = ggtext::element_markdown(size = 12),
+        legend.position = c(0.22,0.96),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12),
+        legend.background = element_blank(),
+        plot.margin=unit(c(1,1,1,-0.5), "cm")) +
+  coord_flip()
+
+q_fig <- ggplot(data = trends_wtemp_Q, aes(x = site_no, y = sen.slope.Q)) +
+  geom_hline(yintercept = 0, linetype = 'longdash') +
+  geom_point(aes(fill = factor(status.Q)), shape = 21, size = 2, na.rm = T) +
+  scale_fill_manual(name = "",
+                    labels = c("p-value > 0.05","p-value < 0.05"),
+                    values = c("white","black"),
+                    na.translate=FALSE) +
+  xlab("") +
+  ylab(expression(atop(Discharge~Trend,(m^3~s^-1~~yr^-1)))) +
+  scale_y_continuous(breaks = seq(-4.4,1.4,0.4), limits = c(-4.4,1.4)) +
+  theme_bw() +
+  theme(panel.grid.major = element_line(colour = "gray85",linetype="longdash",size=0.1),
+        text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, color = "black", angle = 40, hjust = 1, vjust = 1),
+        axis.text.y = element_blank(),
+        legend.position = 'none',
+        plot.margin=unit(c(1,1,1,-1), "cm")) +
+  coord_flip()
+
+# width = 900, height = 1000
+ggarrange(wtemp_fig, q_fig, ncol = 2, align = 'h', widths = c(1.5,1.1))
 
 ### Run HW & CS analysis
 
@@ -174,9 +231,9 @@ hw_cs_site <- merge(station_details, hw_cs_site, by = "site_no")
 hw_cs_mod <- lm(hw_cs_site$TotalEvents_CS~hw_cs_site$TotalEvents_HW)
 summary(hw_cs_mod)
 
-cols <- c("1" = "#ffffd9", "3" = "#edf8b1", "4" = "#c7e9b4", "5" = "#7fcdbb",
-          "6" = "#41b6c4", "7" = "#1d91c0", "8" = "#225ea8", "9" = "#0c2c84")
 cols2 <- c("Below" = "#edf8b1", "Above" = "#7fcdbb", "None" = "#2c7fb8")
+cols3 <- c("1" = "#ffffd9", "3" = "#edf8b1", "4" = "#c7e9b4", "5" = "#7fcdbb",
+          "6" = "#41b6c4", "7" = "#1d91c0", "8" = "#225ea8", "9" = "#0c2c84")
 
 hw_cs_site %>%
   group_by(Reservoir) %>%
@@ -184,60 +241,10 @@ hw_cs_site %>%
             SD = round(round(sd(TotalEvents_HW))),
             n = n())
 
-usa_region <- data.frame(matrix(ncol = 2, nrow = 50))
-z <- c("STUSAB", "Region")
-colnames(usa_region) <- z
-usa_region$STUSAB <- c("IL","IN","KY","MO","OH","TN","WV",
-                       "IA","MI","MN","WI",
-                       "CT","DE","ME","MD","MA","NH","NJ","NY","PA","RI","VT",
-                       "ID","OR","WA",
-                       "AR","KS","LA","MS","OK","TX",
-                       "AL","FL","GA","NC","SC","VA",
-                       "AZ","CO","NM","UT",
-                       "CA","NV",
-                       "MT","NE","ND","SD","WY","AK","HI")
-usa_region$Region <- c("Central","Central","Central","Central","Central","Central","Central",
-                       "ENC","ENC","ENC","ENC",
-                       "NE","NE","NE","NE","NE","NE","NE","NE","NE","NE","NE",
-                       "NW","NW","NW",
-                       "South","South","South","South","South","South",
-                       "SE","SE","SE","SE","SE","SE",
-                       "SW","SW","SW","SW",
-                       "West","West",
-                       "WNC","WNC","WNC","WNC","WNC","Alaska","Hawaii")
-
-trends_wtemp_Q <- left_join(trends_wtemp_Q, usa_region, by = 'STUSAB')
-wtemp_q_lm <- lm(wtemp_slope~Q_slope, data = trends_wtemp_Q)
-summary(wtemp_q_lm)
-
-cols3 <- c("NE" = "#d73027", "ENC" = "#f46d43", "SE" = "#ffffbf",
-          "WNC" = "#e0f3f8", "South" = "#abd9e9","SW" = "#74add1",
-          "NW" = "#4575b4","West" = "#313695","Alaska" = "#a50026")
-
-ggplot(data = trends_wtemp_Q, aes(x = Q_slope, y = wtemp_slope)) +
-  geom_vline(xintercept = 0, linetype = "longdash") +
-  geom_hline(yintercept = 0, linetype = "longdash") +
-  geom_point(shape = 21, size = 3, aes(fill = factor(Region))) +
-  scale_fill_manual(values = cols3) +
-  stat_smooth(method = 'lm', se = FALSE) +
-  scale_y_continuous(breaks = seq(-0.07, 0.07, 0.02), limits = c(-0.07, 0.07)) +
-  scale_x_continuous(breaks = seq(-8.0, 3.0, 1.0), limits = c(-8.0, 3.0)) +
-  labs(x = expression(Discharge~Trend~(m^3~s^-1~yr^-1)),
-       y = expression(Water~Temperature~Trend~(C~yr^-1)),
-       fill = "Region") +
-  theme_bw() +
-  theme(panel.grid = element_blank(),
-        text = element_text(size = 16),
-        axis.text.x = element_text(size = 16, color = "black"),
-        axis.text.y = element_text(size = 16, color = "black"),
-        legend.title.align = 0.5,
-        legend.position = c(0.2,0.2)) +
-  guides(fill=guide_legend(ncol=2))
-
 hw_cs_site <- left_join(hw_cs_site, usa_region, by = 'STUSAB')
 
 hw_anova <- aov(TotalEvents_HW~Reservoir, data = hw_cs_site)
-summary(hw_anova)
+summary(hw_anova) # p-value = 0.193
 
 ggplot(data = hw_cs_site, aes(x = Reservoir, y = TotalEvents_HW)) +
   geom_boxplot(outlier.shape = NA) +
@@ -254,7 +261,6 @@ ggplot(data = hw_cs_site, aes(x = Reservoir, y = TotalEvents_HW)) +
 
 library(dplyr)
 library(rstatix)
-library(ggpubr)
 
 test <- hw_cs_site
 test$Region <- as.factor(test$Region)
@@ -348,39 +354,45 @@ hw %>%
 
 ranges <- mapply(function(x, y, z)  seq.Date(y, z, 1), hw$site_no,  hw$date_start, hw$date_end, USE.NAMES = TRUE)
 hw$MeanResidaulQ <- mapply(function(a, b)
-  mean(residualQ$mhw_residualQ[residualQ$site_no == b][match(a, residualQ$Date[residualQ$site_no == b])], na.rm = T), ranges, names(ranges))
+  mean(residualQ$hw_residualQ[residualQ$site_no == b][match(a, residualQ$Date[residualQ$site_no == b])], na.rm = T), ranges, names(ranges))
 
 hw <- left_join(hw, usa_region, by = 'STUSAB')
+
+hw_site <- hw %>%
+  group_by(Year, site_no) %>%
+  summarise(Avg.Duration = mean(duration, na.rm = T),
+            Avg.CuInt = mean(intensity_cumulative_relThresh, na.rm = T),
+            SumEvents = length(duration))
 
 hw_region <- hw %>%
   group_by(Year, Region) %>%
   summarise(Avg.Duration = mean(duration, na.rm = T),
             Avg.CuInt = mean(intensity_cumulative_relThresh, na.rm = T),
-            SumEvents = length(duration))
+            SumEvents = length(duration)) # Frequency determined based on number of sites per region
 
 hw_season <- hw %>%
   group_by(Year, Season) %>%
   summarise(Avg.Duration = mean(duration, na.rm = T),
             Avg.CuInt = mean(intensity_cumulative_relThresh, na.rm = T),
-            Frequency = length(duration)/NROW(unique(hw$site_no)))
+            Frequency = length(duration)/NROW(unique(hw$site_no))) # Frequency determined based on total number of unique sites (70) per season
 
 hw_time <- hw %>%
   group_by(Year) %>%
   summarise(Avg.Duration = mean(duration, na.rm = T),
             Avg.CuInt = mean(intensity_cumulative_relThresh, na.rm = T),
-            Frequency = length(duration)/NROW(unique(hw$site_no)))
+            Frequency = length(duration)/NROW(unique(hw$site_no))) # Frequency determined based on total number of unique sites (70)
 
 hw_order <- hw %>%
   group_by(Year, StreamOrder) %>%
   summarise(Avg.Duration = mean(duration, na.rm = T),
             Avg.CuInt = mean(intensity_cumulative_relThresh, na.rm = T),
-            SumEvents = length(duration))
+            SumEvents = length(duration)) # Frequency determined based on number of sites per stream order
 
 hw_reservoir <- hw %>%
   group_by(Year, Reservoir) %>%
   summarise(Avg.Duration = mean(duration, na.rm = T),
             Avg.CuInt = mean(intensity_cumulative_relThresh, na.rm = T),
-            SumEvents = length(duration))
+            SumEvents = length(duration)) # Frequency determined based on number of sites per reservoir class
 
 hw %>%
   group_by(Region) %>%
@@ -485,11 +497,44 @@ hw_reservoir$nStations[hw_reservoir$Reservoir == 'Below'] <- 15
 hw_reservoir$nStations[hw_reservoir$Reservoir == 'None'] <- 44
 hw_reservoir$Frequency = round(hw_reservoir$SumEvents/hw_reservoir$nStations, digits = 2)
 
+x1 <- as.data.frame(seq(from = 1996, to = 2021, by = 1))
+x2 <- as.data.frame(seq(from = 1996, to = 2021, by = 1))
+x3 <- as.data.frame(seq(from = 1996, to = 2021, by = 1))
+x4 <- as.data.frame(seq(from = 1996, to = 2021, by = 1))
+names(x1)[1] <- "Year"
+names(x2)[1] <- "Year"
+names(x3)[1] <- "Year"
+names(x4)[1] <- "Year"
+x1$Season <- "Fall"
+x2$Season <- "Winter"
+x3$Season <- "Spring"
+x4$Season <- "Summer"
+season <- rbind(x1,x2,x3,x4)
+hw_season <- merge(hw_season, season, by = c("Year","Season"), all = TRUE)
+hw_season[is.na(hw_season)] <- 0
+
+zz <- unique(station_details$site_no)
+fillout <- as.data.frame(rep(zz, times = 26))
+colnames(fillout)[1] <- "site_no"
+fillout <- fillout %>% arrange(-desc(fillout$site_no))
+fillout$Year <- rep(1996:2021, times = 70)
+hw_site <- merge(hw_site,fillout, by = c('site_no',"Year"), all = TRUE)
+hw_site[is.na(hw_site)] <- 0
+colnames(hw_site)[5] <- 'Frequency'
+
+NROW(hw_time) # should be 26 rows (26 years = 26)
+NROW(hw_region) # should be 234 rows (26 years * 9 regions = 234)
+NROW(hw_season) # should be 104 rows (26 years * 4 seasons = 104)
+NROW(hw_order) # should be 208 rows (26 years * 8 stream orders = 208)
+NROW(hw_reservoir) # should be 78 rows (26 years * 3 reservoir classes = 78)
+NROW(hw_site) # should be 1820 rows (26 years * 70 sites = 1820)
+
 aa <- unique(hw_time$Type)
 bb <- unique(hw_region$Region)
 cc <- unique(hw_season$Season)
 dd <- unique(hw_order$StreamOrder)
 ee <- unique(hw_reservoir$Reservoir)
+ff <- unique(hw_site$site_no)
 
 #######################################################################################
 #                                                                                     #
@@ -801,10 +846,10 @@ for(i in 1:length(ee)){
   slope = ss$estimates
   Reservoir = ee[i]
   cur_hw_reservoir = data.frame(TestType = "Reservoir",
-                            Variable = "Avg.Duration",
-                            Category = Reservoir,
-                            slope = round(slope, 3),
-                            p.val = round(p.val, 4))
+                                Variable = "Avg.Duration",
+                                Category = Reservoir,
+                                slope = round(slope, 3),
+                                p.val = round(p.val, 4))
   if( i == 1){
     hw_reservoir_duration = cur_hw_reservoir
   } else{
@@ -823,10 +868,10 @@ for(i in 1:length(ee)){
   slope = ss$estimates
   Reservoir = ee[i]
   cur_hw_reservoir = data.frame(TestType = "Reservoir",
-                            Variable = "Avg.CuInt",
-                            Category = Reservoir,
-                            slope = round(slope, 3),
-                            p.val = round(p.val, 4))
+                                Variable = "Avg.CuInt",
+                                Category = Reservoir,
+                                slope = round(slope, 3),
+                                p.val = round(p.val, 4))
   if( i == 1){
     hw_reservoir_intensity = cur_hw_reservoir
   } else{
@@ -845,14 +890,87 @@ for(i in 1:length(ee)){
   slope = ss$estimates
   Reservoir = ee[i]
   cur_hw_reservoir = data.frame(TestType = "Reservoir",
-                            Variable = "Frequency",
-                            Category = Reservoir,
-                            slope = round(slope, 3),
-                            p.val = round(p.val, 4))
+                                Variable = "Frequency",
+                                Category = Reservoir,
+                                slope = round(slope, 3),
+                                p.val = round(p.val, 4))
   if( i == 1){
     hw_reservoir_freq = cur_hw_reservoir
   } else{
     hw_reservoir_freq = rbind(hw_reservoir_freq, cur_hw_reservoir)
+  }
+}
+
+#######################################################################################
+#                                                                                     #
+#                                     Site                                       #
+#                                                                                     #
+#######################################################################################
+
+for(i in 1:length(ff)){
+  curDat = hw_site[hw_site$site_no == ff[i],]
+  ts = ts(data = curDat[, 3],
+          frequency = 1,
+          start = min(curDat$Year),
+          end = max(curDat$Year))
+  ManKen = MannKendall(ts)
+  ss = sens.slope(ts)
+  p.val = ManKen$sl
+  slope = ss$estimates
+  site_no = ff[i]
+  cur_hw_site = data.frame(TestType = "site_no",
+                                Variable = "Avg.Duration",
+                                Category = site_no,
+                                slope = round(slope, 3),
+                                p.val = round(p.val, 4))
+  if( i == 1){
+    hw_site_duration = cur_hw_site
+  } else{
+    hw_site_duration = rbind(hw_site_duration, cur_hw_site)
+  }
+}
+for(i in 1:length(ff)){
+  curDat = hw_site[hw_site$site_no == ff[i],]
+  ts = ts(data = curDat[, 4],
+          frequency = 1,
+          start = min(curDat$Year),
+          end = max(curDat$Year))
+  ManKen = MannKendall(ts)
+  ss = sens.slope(ts)
+  p.val = ManKen$sl
+  slope = ss$estimates
+  site_no = ff[i]
+  cur_hw_site = data.frame(TestType = "site_no",
+                                Variable = "Avg.CuInt",
+                                Category = site_no,
+                                slope = round(slope, 3),
+                                p.val = round(p.val, 4))
+  if( i == 1){
+    hw_site_intensity = cur_hw_site
+  } else{
+    hw_site_intensity = rbind(hw_site_intensity, cur_hw_site)
+  }
+}
+for(i in 1:length(ff)){
+  curDat = hw_site[hw_site$site_no == ff[i],]
+  ts = ts(data = curDat[, 5],
+          frequency = 1,
+          start = min(curDat$Year),
+          end = max(curDat$Year))
+  ManKen = MannKendall(ts)
+  ss = sens.slope(ts)
+  p.val = ManKen$sl
+  slope = ss$estimates
+  site_no = ff[i]
+  cur_hw_site = data.frame(TestType = "site_no",
+                                Variable = "Frequency",
+                                Category = site_no,
+                                slope = round(slope, 3),
+                                p.val = round(p.val, 4))
+  if( i == 1){
+    hw_site_freq = cur_hw_site
+  } else{
+    hw_site_freq = rbind(hw_site_freq, cur_hw_site)
   }
 }
 
@@ -875,6 +993,11 @@ hw_order_output$Rank <- seq(1,24,1)
 hw_reservoir_output <- rbind(hw_reservoir_duration, hw_reservoir_intensity, hw_reservoir_freq)
 hw_reservoir_output <- hw_reservoir_output %>% arrange(-desc(p.val))
 hw_reservoir_output$Rank <- seq(1,9,1)
+
+hw_site_output <- rbind(hw_site_duration, hw_site_intensity, hw_site_freq)
+hw_site_output <- hw_site_output %>% arrange(-desc(p.val))
+hw_site_output$Rank <- seq(1,210,1)
+colnames(hw_site_output)[3] <- 'site_no'
 
 ### 15% False Discovery Rate (see link for details: http://www.biostathandbook.com/multiplecomparisons.html)
 
@@ -900,7 +1023,7 @@ fdr_table[67:75,3] <- round((fdr_table$Rank[67:75]/9)*0.15,4)
 hw_MKSS_results <- rbind(hw_time_output, hw_region_output, hw_season_output, hw_order_output, hw_reservoir_output)
 hw_MKSS_results <- left_join(hw_MKSS_results,fdr_table, by = c("TestType","Rank"))
 hw_MKSS_results$SigTest <- ifelse(hw_MKSS_results$p.val < hw_MKSS_results$FDR_0.1,"Sig","NS")
-hw_MKSS_results_sig <- hw_MKSS_results[c(1,31,43:48,67:69),] # two results have p-value < 0.05 but greater than the adjusted critical value. Felt worthy of reporting them along with their critical value.
+hw_MKSS_results_sig <- hw_MKSS_results[c(1,31:32,43:48,67:69),] # three results have p-value < 0.05 but greater than the adjusted critical value. Felt worthy of reporting them along with their critical value.
 View(hw_MKSS_results_sig)
 # write.csv(hw_MKSS_results_sig, '70sites_MKSS_results.csv')
 
@@ -928,11 +1051,15 @@ hw_temp_fill$n[is.na(hw_temp_fill$n)] <- 0
 
 colnames(hw_temp_fill)[3] <- "TotalEvents_HW"
 
-hw_sum_cat <- saveCatWarm %>% group_by(year, category) %>% summarise(TotalDuration_HW = sum(duration))
+hw_sum_cat <- saveCatWarm %>%
+  group_by(year, category) %>%
+  summarise(TotalDuration_HW = sum(duration),
+            TotalIntensity_HW = sum(i_max))
 
 hw_sum_cat <- merge(hw_sum_cat, fillout, by = c("year","category"), all = TRUE)
 hw_cat_total <- cbind(hw_sum_cat, hw_temp_fill)
-hw_cat_total <- hw_cat_total[,c(1:3,6)]
+hw_cat_total <- hw_cat_total[,c(1:4,7)]
+hw_cat_total[is.na(hw_cat_total)] <- 0
 
 hw_cat_total %>%
   group_by(category) %>%
@@ -968,7 +1095,7 @@ Fig2a <- ggplot(data = hw_cat_total) +
         axis.title.x = element_blank(),
         axis.text.x = element_text(size = 16, color = "white"),
         axis.text.y = element_text(size = 16, color = "black"),
-        legend.position = c(0.18,0.8),
+        legend.position = c(0.18,0.75),
         legend.title = element_text(face = "bold", size = 14),
         legend.text = element_text(size = 12),
         legend.background = element_blank())
@@ -990,26 +1117,210 @@ summary(strong_lm)
 summary(severe_lm)
 summary(extreme_lm)
 
+library(scales)
+
+Fig2b <- ggplot(data = hw_cat_total) +
+  geom_col(aes(x = as.numeric(year), y = TotalDuration_HW,
+               fill = fct_rev(as_factor(category))), color = "black",
+           width = 1) +
+  scale_fill_manual(values = c("#7f1416","#cb3827","#f26722","#ffda68")) +
+  xlab("Year") +
+  scale_x_continuous(breaks = seq(1996, 2021, 4)) +
+  scale_y_continuous(breaks = seq(0,4000,500),
+                     labels = label_number(big.mark = ",")) +
+  ylab("Total HW Duration (days)") +
+  annotate("text", x = 2020.75, y = 4000, label = "(b", size = 6) +
+  guides(fill=guide_legend(title="Category")) +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        text = element_text(size = 16),
+        axis.title.x = element_blank(),
+        axis.text.x = element_text(size = 16, color = "white"),
+        axis.text.y = element_text(size = 16, color = "black"),
+        legend.position = 'none')
+
+Fig2c <- ggplot(data = hw_cat_total) +
+  geom_col(aes(x = as.numeric(year), y = TotalIntensity_HW,
+               fill = fct_rev(as_factor(category))), color = "black",
+           width = 1) +
+  scale_fill_manual(values = c("#7f1416","#cb3827","#f26722","#ffda68")) +
+  xlab("Year") +
+  scale_x_continuous(breaks = seq(1996, 2021, 4)) +
+  scale_y_continuous(breaks = seq(0,1400,200),
+                     labels = label_number(big.mark = ",")) +
+  ylab(expression(HW~Max~Intensity~(degree*C))) +
+  annotate("text", x = 2020.75, y = 1400, label = "(c", size = 6) +
+  guides(fill=guide_legend(title="Category")) +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        text = element_text(size = 16),
+        axis.title.x = element_blank(),
+        axis.text.x = element_text(size = 16, color = "black"),
+        axis.text.y = element_text(size = 16, color = "black"),
+        legend.position = 'none')
+
+# width = 600 height = 900
+ggarrange(Fig2a,Fig2b,Fig2c, ncol = 1, align = 'v')
+
+hw_site_output <- hw_site_output[,2:5]
+
+hw_site_output <- hw_site_output %>%
+  pivot_wider(names_from = Variable,
+              values_from = c(slope, p.val))
+
+hw_site_output <- hw_site_output %>%
+  data.frame() %>%
+  mutate(status_p.val_Frequency = if_else(
+    p.val_Frequency < 0.05, "sig", "not sig"))
+hw_site_output <- hw_site_output %>%
+  data.frame() %>%
+  mutate(status_p.val_Avg.CuInt = if_else(
+    p.val_Avg.CuInt < 0.05, "sig", "not sig"))
+hw_site_output <- hw_site_output %>%
+  data.frame() %>%
+  mutate(status_p.val_Avg.Duration = if_else(
+    p.val_Avg.Duration < 0.05, "sig", "not sig"))
+
+hw_site_output <- hw_site_output[,c(1:2,5,8,3,6,9,4,7,10)]
+
+hw_site_output <- merge(hw_site_output,station_details, by = "site_no", all = TRUE)
+
+usa_region <- data.frame(matrix(ncol = 2, nrow = 50))
+z <- c("STUSAB", "Region")
+colnames(usa_region) <- z
+usa_region$STUSAB <- c("IL","IN","KY","MO","OH","TN","WV",
+                       "IA","MI","MN","WI",
+                       "CT","DE","ME","MD","MA","NH","NJ","NY","PA","RI","VT",
+                       "ID","OR","WA",
+                       "AR","KS","LA","MS","OK","TX",
+                       "AL","FL","GA","NC","SC","VA",
+                       "AZ","CO","NM","UT",
+                       "CA","NV",
+                       "MT","NE","ND","SD","WY","AK","HI")
+usa_region$Region <- c("Central","Central","Central","Central","Central","Central","Central",
+                       "ENC","ENC","ENC","ENC",
+                       "NE","NE","NE","NE","NE","NE","NE","NE","NE","NE","NE",
+                       "NW","NW","NW",
+                       "South","South","South","South","South","South",
+                       "SE","SE","SE","SE","SE","SE",
+                       "SW","SW","SW","SW",
+                       "West","West",
+                       "WNC","WNC","WNC","WNC","WNC","Alaska","Hawaii")
+
+cols1 <- c("NE" = "#d73027", "ENC" = "#f46d43", "SE" = "#cfcf74",
+           "WNC" = "#bababa", "South" = "#abd9e9","SW" = "#74add1",
+           "NW" = "#4575b4","West" = "#313695","Alaska" = "#a50026")
+cols1 <- data.frame(Region = names(cols1), color = cols1)
+
+hw_site_output <- merge(hw_site_output, usa_region, by = "STUSAB")
+site_hw_trends <- merge(hw_site_output, cols1, by = "Region", all.x = TRUE)
+site_hw_trends$site_no <- paste0("<span style=\"color: ", site_hw_trends$color, "\">", site_hw_trends$site_no, "</span>")
+site_hw_trends$Region <- factor(site_hw_trends$Region,
+                                     levels = c("SE","South","SW","West","NE","ENC","WNC","NW","Alaska"))
+
+site_hw_trends <- site_hw_trends[order(site_hw_trends$Region),]
+site_hw_trends$site_no <- factor(site_hw_trends$site_no, levels = unique(site_hw_trends$site_no))
+
+Fig3a <- ggplot(data = site_hw_trends, aes(x = site_no, y = slope_Frequency)) +
+  geom_hline(yintercept = 0, linetype = 'longdash') +
+  geom_point(aes(fill = factor(status_p.val_Frequency)), shape = 21, size = 2) +
+  scale_fill_manual(name = "",
+                    labels = c("p-value > 0.05","p-value < 0.05"),
+                    values = c("white","black")) +
+  xlab("") +
+  ylab(expression(atop(Frequency~Trend,
+                       (events~yr^-1)))) +
+  scale_y_continuous(breaks = seq(-0.1,0.2,0.05), limits = c(-0.1,0.2)) +
+  annotate("text", x = 69, y = 0.2, label = "(a", size = 6) +
+  theme_bw() +
+  theme(panel.grid.major = element_line(colour = "gray85",linetype="longdash",size=0.1),
+        text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, color = "black"),
+        axis.text.y = ggtext::element_markdown(size = 12),
+        legend.position = 'none',
+        plot.margin=unit(c(1,1,1,-0.5), "cm")) +
+  coord_flip()
+
+Fig3b <- ggplot(data = site_hw_trends, aes(x = site_no, y = slope_Avg.Duration)) +
+  geom_hline(yintercept = 0, linetype = 'longdash') +
+  geom_point(aes(fill = factor(status_p.val_Avg.Duration)), shape = 21, size = 2) +
+  scale_fill_manual(name = "",
+                    labels = c("p-value > 0.05","p-value < 0.05"),
+                    values = c("white","black")) +
+  xlab("") +
+  ylab(expression(atop(Duration~Trend,
+                       (days~yr^-1)))) +
+  scale_y_continuous(breaks = seq(-0.3,0.5,0.1), limits = c(-0.3,0.5),
+                     labels = scales::number_format(accuracy = 0.1)) +
+  annotate("text", x = 69, y = 0.5, label = "(b", size = 6) +
+  theme_bw() +
+  theme(panel.grid.major = element_line(colour = "gray85",linetype="longdash",size=0.1),
+        text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, color = "black"),
+        axis.text.y = element_blank(),
+        legend.position = 'none',
+        plot.margin=unit(c(1,1,1,-1), "cm")) +
+  coord_flip()
+
+Fig3c <- ggplot(data = site_hw_trends, aes(x = site_no, y = slope_Avg.CuInt)) +
+  geom_hline(yintercept = 0, linetype = 'longdash') +
+  geom_point(aes(fill = factor(status_p.val_Avg.CuInt)), shape = 21, size = 2) +
+  scale_fill_manual(name = "",
+                    labels = c("p-value > 0.05","p-value < 0.05"),
+                    values = c("white","black")) +
+  xlab("") +
+  ylab(expression(atop(Intensity~Trend,
+                       (degree*C~days~yr^-1)))) +
+  scale_y_continuous(breaks = seq(-0.4,0.4,0.1), limits = c(-0.4,0.4)) +
+  annotate("text", x = 69, y = 0.4, label = "(c", size = 6) +
+  theme_bw() +
+  theme(panel.grid.major = element_line(colour = "gray85",linetype="longdash",size=0.1),
+        text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, color = "black"),
+        axis.text.y = element_blank(),
+        legend.position = c(0.25,0.95),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12),
+        legend.background = element_blank(),
+        plot.margin=unit(c(1,1,1,-1), "cm")) +
+  coord_flip()
+
+# width = 1100 height = 1200
+ggarrange(Fig3a,Fig3b,Fig3c, ncol = 3, align = 'h', widths = c(2,1.4,1.4))
+
 hw_sum <- saveCatWarm %>%
   group_by(year, Station) %>%
-  summarise(TotalDuration = sum(duration, na.rm = TRUE))
+  summarise(TotalDuration = sum(duration, na.rm = TRUE),
+            Avg.MaxIntensity = mean(i_max, na.rm = TRUE),
+            Frequency = length(duration))
+colnames(hw_sum)[2] <- 'site_no'
+
+zz <- unique(station_details$site_no)
+fillout <- as.data.frame(rep(zz, times = 26))
+colnames(fillout)[1] <- "site_no"
+fillout <- fillout %>% arrange(-desc(fillout$site_no))
+fillout$year <- rep(1996:2021, times = 70)
+hw_sum <- merge(hw_sum,fillout, by = c('site_no',"year"), all = TRUE)
+hw_sum[is.na(hw_sum)] <- 0
+
 hw_sum2 <- hw_sum %>%
   group_by(year) %>%
-  summarise(MeanAnnualTotalDuration = mean(TotalDuration, na.rm = TRUE))
-hw_sum_lm <- lm(hw_sum2$MeanAnnualTotalDuration~hw_sum2$year)
-summary(hw_sum_lm)
+  summarise(MeanAnnualTotalDuration = mean(TotalDuration, na.rm = TRUE),
+            MeanAnnualMaxIntensity = mean(Avg.MaxIntensity, na.rm = TRUE))
+summary(lm(hw_sum2$MeanAnnualTotalDuration~hw_sum2$year))
+summary(lm(hw_sum2$MeanAnnualMaxIntensity~hw_sum2$year))
 
-Fig2b <- ggplot(data = hw_sum2, aes(x = year, y = MeanAnnualTotalDuration)) +
+ggplot(data = hw_sum2, aes(x = year, y = MeanAnnualTotalDuration)) +
   geom_smooth(method = "lm", formula = y~x, color = "red", size = 0.5, se = TRUE) +
   geom_point(shape = 21, size = 2, color = "black", fill = "white", stroke = 1) +
   xlab("Year") +
   scale_x_continuous(breaks = seq(1996, 2021, 4)) +
   scale_y_continuous(breaks = seq(0, 60, 5), limits = c(0,60)) +
   ylab("Avg. Total HW Days") +
-  annotate("text", x = 1998.4, y = 60, label = "y = 0.64x - 1262", size = 5, hjust = 0.23) +
+  annotate("text", x = 1998.4, y = 60, label = "y = 0.65x - 1283", size = 5, hjust = 0.23) +
   annotate("text", x = 1996.75, y = 54,
-           label = "paste(R ^ 2, \" = 0.23\")", parse = TRUE, size = 5, hjust = 0) +
-  annotate("text", x = 1996.75, y = 48, label = "p-value = 0.013", size = 5, hjust = 0) +
+           label = "paste(R ^ 2, \" = 0.22\")", parse = TRUE, size = 5, hjust = 0) +
+  annotate("text", x = 1996.75, y = 48, label = "p-value = 0.017", size = 5, hjust = 0) +
   annotate("text", x = 2019.5, y = 55, label = "(b", size = 6, hjust = 0) +
   theme_bw() +
   theme(panel.grid = element_blank(),
@@ -1017,8 +1328,20 @@ Fig2b <- ggplot(data = hw_sum2, aes(x = year, y = MeanAnnualTotalDuration)) +
         axis.text.x = element_text(size = 16, color = "black"),
         axis.text.y = element_text(size = 16, color = "black"))
 
-# width = 600 height = 800
-ggarrange(Fig2a,Fig2b, ncol = 1, align = 'v')
+ggplot(data = hw_sum2, aes(x = year, y = MeanAnnualMaxIntensity)) +
+  geom_smooth(method = "lm", formula = y~x, color = "red", size = 0.5, se = TRUE) +
+  geom_point(shape = 21, size = 2, color = "black", fill = "white", stroke = 1) +
+  xlab("Year") +
+  scale_x_continuous(breaks = seq(1996, 2021, 4)) +
+  scale_y_continuous(breaks = seq(0, 4, 1), limits = c(0,4)) +
+  ylab("Avg. Max HW Intensity") +
+  annotate("text", x = 1996.75, y = 4, label = "p-value = 0.277", size = 5, hjust = 0) +
+  # annotate("text", x = 2019.5, y = 55, label = "(b", size = 6, hjust = 0) +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        text = element_text(size = 16),
+        axis.text.x = element_text(size = 16, color = "black"),
+        axis.text.y = element_text(size = 16, color = "black"))
 
 residualQ$year <- year(residualQ$Date)
 annualQ <- residualQ %>%
