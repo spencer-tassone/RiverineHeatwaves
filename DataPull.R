@@ -30,10 +30,10 @@ full_station_list <- do.call(rbind.data.frame, result)
 full_station_list$site_no_chr <- as.character(full_station_list$site_no)
 full_station_list$Order <- seq(from = 1, to = nrow(full_station_list), by = 1)
 full_station_list <- full_station_list[!duplicated(full_station_list$site_no_chr),] # All available USGS stations with daily mean water temperature data between 1996-2020 
-rm(list=setdiff(ls(), "full_station_list")) # 287 stations
+rm(list=setdiff(ls(), "full_station_list")) # 288 stations
 # write.csv(full_station_list, 'full_station_list.csv')
 
-### Extract daily mean water temperature from full_station_list. Also takes a while to run ~1 hour
+### Extract daily mean water temperature from full_station_list. Also takes a while to run ~1-2 hours
 startDate <- "1996-01-01"
 endDate <- "2021-12-31"
 dat_final_large <- readNWISdv(siteNumbers = full_station_list$site_no, # readNWISdv pulls daily mean values
@@ -177,11 +177,12 @@ models_fit <- wmet %>%
   group_by(site_no) %>%
   do(model = glance(lm(Wtemp~tmax..deg.c.+tmin..deg.c.+prcp..mm.day.+vp..Pa.+totalRadiation+DoY, data = .))) %>%
   unnest(model)
-models_fit$r.squared <- round(models_fit$r.squared, digits = 2) # 70 sites with r-square >= 0.80
-good_model_fits <- models_fit[models_fit$r.squared >= 0.80,]
+models_fit$r.squared <- round(models_fit$r.squared, digits = 2)
+good_model_fits <- models_fit[models_fit$r.squared >= 0.80,] # 70 sites with r-square >= 0.80
 round(mean(good_model_fits$r.squared),digits = 2) # answer is 0.91
 round(sd(good_model_fits$r.squared),digits = 2) # answer is 0.04
 wmet <- wmet[wmet$site_no %in% good_model_fits$site_no,]
+met_dat_wide <- met_dat_wide[met_dat_wide$site_no %in% keep_sites_temp$site_no,]
 
 library(purrr)
 
@@ -207,209 +208,6 @@ missing_Wtemp <- wmet %>%
   group_by(site_no) %>%
   summarise(Total_Wtemp_DataAvail = sum(!is.na(predWtemp)),
             Frac_Wtemp_DataAvail = round((Total_Wtemp_DataAvail/9497), digits = 3))
-
-annual_mean_wtemp <- wmet %>%
-  group_by(site_no, Year) %>%
-  summarise(annual_mean_wtemp = mean(corWtemp, na.rm = TRUE))
-
-longterm_wtemp <- annual_mean_wtemp %>%
-  group_by(site_no) %>%
-  summarise(LongTermMeanWtemp = round(mean(annual_mean_wtemp, na.rm = TRUE),1))
-
-annual_mean_wtemp <- merge(annual_mean_wtemp, longterm_wtemp, by = "site_no")
-annual_mean_wtemp$NormalizedAnnualMeanWtemp <- round(((annual_mean_wtemp$annual_mean_wtemp-annual_mean_wtemp$LongTermMeanWtemp)/annual_mean_wtemp$LongTermMeanWtemp)*100,digits = 1)
-colnames(annual_mean_wtemp)[2] <- "year"
-
-library(Kendall)
-library(trend)
-
-aa <- unique(annual_mean_wtemp$site_no)
-for(i in 1:length(aa)){
-  curDat = annual_mean_wtemp[annual_mean_wtemp$site_no == aa[i],]
-  ts = ts(data = curDat[, 3],
-          frequency = 1,
-          start = min(curDat$year),
-          end = max(curDat$year))
-  ManKen = MannKendall(ts)
-  ss = sens.slope(ts, conf.level = 0.95)
-  p.val = ManKen$sl
-  slope = ss$estimates
-  lower95 = ss$conf.int[1]
-  upper95 = ss$conf.int[2]
-  site_no = aa[i]
-  cur_temp_time = data.frame(site_no = aa[i],
-                             wtemp_slope = round(slope, 3),
-                             upper95 = round(upper95, 3),
-                             lower95 = round(lower95, 3),
-                             p.val = round(p.val, 4))
-  if( i == 1){
-    wtemp_trends = cur_temp_time
-  } else{
-    wtemp_trends = rbind(wtemp_trends, cur_temp_time)
-  }
-}
-for(i in 1:length(aa)){
-  curDat = annual_mean_wtemp[annual_mean_wtemp$site_no == aa[i],]
-  ts = ts(data = curDat[, 5],
-          frequency = 1,
-          start = min(curDat$year),
-          end = max(curDat$year))
-  ManKen = MannKendall(ts)
-  ss = sens.slope(ts, conf.level = 0.95)
-  p.val = ManKen$sl
-  slope = ss$estimates
-  lower95 = ss$conf.int[1]
-  upper95 = ss$conf.int[2]
-  site_no = aa[i]
-  cur_temp_time = data.frame(site_no = aa[i],
-                             normalized_wtemp_slope = round(slope, 3),
-                             normalized_wtemp_upper95 = round(upper95, 3),
-                             normalized_wtemp_lower95 = round(lower95, 3),
-                             normalized_wtemp_p.val = round(p.val, 4))
-  if( i == 1){
-    normalized_wtemp_trends = cur_temp_time
-  } else{
-    normalized_wtemp_trends = rbind(normalized_wtemp_trends, cur_temp_time)
-  }
-}
-
-met_dat_70 <- met_dat_wide[met_dat_wide$site_no %in% annual_mean_wtemp$site_no,]
-met_dat_70$year <- year(met_dat_70$Date)
-annual_mean_atemp <- met_dat_70 %>%
-  group_by(site_no, year) %>%
-  summarise(annual_mean_atemp = mean(tmean, na.rm = TRUE))
-
-longterm_atemp <- annual_mean_atemp %>%
-  group_by(site_no) %>%
-  summarise(LongTermMeanAtemp = round(mean(annual_mean_atemp, na.rm = TRUE),1))
-
-annual_mean_atemp <- merge(annual_mean_atemp, longterm_atemp, by = "site_no")
-annual_mean_atemp$NormalizedAnnualMeanAtemp <- round(((annual_mean_atemp$annual_mean_atemp-annual_mean_atemp$LongTermMeanAtemp)/annual_mean_atemp$LongTermMeanAtemp)*100,digits = 1)
-
-aa <- unique(annual_mean_atemp$site_no)
-for(i in 1:length(aa)){
-  curDat = annual_mean_atemp[annual_mean_atemp$site_no == aa[i],]
-  ts = ts(data = curDat[, 3],
-          frequency = 1,
-          start = min(curDat$year),
-          end = max(curDat$year))
-  ManKen = MannKendall(ts)
-  ss = sens.slope(ts, conf.level = 0.95)
-  p.val = ManKen$sl
-  slope = ss$estimates
-  lower95 = ss$conf.int[1]
-  upper95 = ss$conf.int[2]
-  site_no = aa[i]
-  cur_temp_time = data.frame(site_no = aa[i],
-                             atemp_slope = round(slope, 3),
-                             upper95 = round(upper95, 3),
-                             lower95 = round(lower95, 3),
-                             p.val = round(p.val, 4))
-  if( i == 1){
-    atemp_trends = cur_temp_time
-  } else{
-    atemp_trends = rbind(atemp_trends, cur_temp_time)
-  }
-}
-for(i in 1:length(aa)){
-  curDat = annual_mean_atemp[annual_mean_atemp$site_no == aa[i],]
-  ts = ts(data = curDat[, 5],
-          frequency = 1,
-          start = min(curDat$year),
-          end = max(curDat$year))
-  ManKen = MannKendall(ts)
-  ss = sens.slope(ts, conf.level = 0.95)
-  p.val = ManKen$sl
-  slope = ss$estimates
-  lower95 = ss$conf.int[1]
-  upper95 = ss$conf.int[2]
-  site_no = aa[i]
-  cur_temp_time = data.frame(site_no = aa[i],
-                             normalized_atemp_slope = round(slope, 3),
-                             normalized_atemp_upper95 = round(upper95, 3),
-                             normalized_atemp_lower95 = round(lower95, 3),
-                             normalized_atemp_p.val = round(p.val, 4))
-  if( i == 1){
-    normalized_atemp_trends = cur_temp_time
-  } else{
-    normalized_atemp_trends = rbind(normalized_atemp_trends, cur_temp_time)
-  }
-}
-
-wtemp_trends <- merge(wtemp_trends,normalized_wtemp_trends, by = "site_no")
-atemp_trends <- merge(atemp_trends,normalized_atemp_trends, by = "site_no")
-temp_trends <- merge(wtemp_trends,atemp_trends, by = "site_no")
-
-library(ggplot2)
-
-usa_region <- data.frame(matrix(ncol = 2, nrow = 50))
-z <- c("STUSAB", "Region")
-colnames(usa_region) <- z
-usa_region$STUSAB <- c("IL","IN","KY","MO","OH","TN","WV",
-                       "IA","MI","MN","WI",
-                       "CT","DE","ME","MD","MA","NH","NJ","NY","PA","RI","VT",
-                       "ID","OR","WA",
-                       "AR","KS","LA","MS","OK","TX",
-                       "AL","FL","GA","NC","SC","VA",
-                       "AZ","CO","NM","UT",
-                       "CA","NV",
-                       "MT","NE","ND","SD","WY","AK","HI")
-usa_region$Region <- c("Central","Central","Central","Central","Central","Central","Central",
-                       "ENC","ENC","ENC","ENC",
-                       "NE","NE","NE","NE","NE","NE","NE","NE","NE","NE","NE",
-                       "NW","NW","NW",
-                       "South","South","South","South","South","South",
-                       "SE","SE","SE","SE","SE","SE",
-                       "SW","SW","SW","SW",
-                       "West","West",
-                       "WNC","WNC","WNC","WNC","WNC","Alaska","Hawaii")
-
-hw_site <- left_join(station_details, usa_region, by = 'STUSAB')
-temp_trends <- merge(temp_trends,hw_site, by = "site_no")
-
-cols <- c("NE" = "#d73027", "ENC" = "#f46d43", "SE" = "#ffffbf",
-          "WNC" = "#e0f3f8", "South" = "#abd9e9","SW" = "#74add1",
-          "NW" = "#4575b4","West" = "#313695","Alaska" = "#a50026")
-
-summary(lm(normalized_wtemp_slope~normalized_atemp_slope, data = temp_trends))
-
-Fig4a <- ggplot(data = temp_trends, aes(x = normalized_atemp_slope, y = normalized_wtemp_slope)) +
-  geom_abline(slope = 1, linetype = 'longdash') +
-  geom_hline(yintercept = 0, color = "black") +
-  geom_vline(xintercept = 0, color ="black") +
-  stat_smooth(method = 'lm', se = F, color = "red") +
-  geom_point(shape = 21, size = 4, aes(fill = factor(Region))) +
-  scale_fill_manual(values = cols) +
-  ylab(expression(atop(Normalized~Annual,
-                         Water~Temp.~Trend~("%"~yr^-1)))) +
-  xlab(expression(Normalized~Annual~Atmo~Temp.~Trend~("%"~yr^-1))) +
-  labs(fill = "Region") +
-  scale_y_continuous(breaks = seq(-0.4,0.8,0.2), limits = c(-0.4,0.8)) +
-  scale_x_continuous(breaks = seq(-0.4,0.8,0.2), limits = c(-0.4,0.8)) +
-  annotate("text", x = -0.4, y = 0.8, label = "y = 0.39x + 0.07", size = 6, hjust = 0) +
-  annotate("text", x = -0.4, y = 0.7, label = "p-value = 0.004", size = 6, hjust = 0) +
-  annotate("text", x = -0.4, y = 0.6, label = expression(paste(R^2," = 0.11")), size = 6, hjust = 0) +
-  annotate("text", x = 0.8, y = -0.35, label = "(a", size = 8) +
-  theme_bw() +
-  theme(panel.grid = element_blank(),
-        text = element_text(size = 18, color = "black"),
-        axis.text.x = element_text(size = 18, color = "black"),
-        axis.text.y = element_text(size = 18, color = 'black'),
-        legend.title.align = 0.5,
-        legend.position = c(0.11,0.34))
-
-sum(temp_trends$atemp_slope > temp_trends$wtemp_slope) # 40 out of 70 (57%)
-sum(temp_trends$atemp_slope < temp_trends$wtemp_slope) # 29 out of 70 (41%)
-sum(temp_trends$normalized_atemp_slope > temp_trends$normalized_wtemp_slope) # 42 out of 70 (60%)
-sum(temp_trends$normalized_atemp_slope < temp_trends$normalized_wtemp_slope) # 27 out of 70 (39%)
-sum(temp_trends$p.val.x < 0.05) # water temp: 21 out of 70
-sum(temp_trends$wtemp_slope > 0) # water temp: 65 out of 70
-sum(temp_trends$p.val.x < 0.05 & temp_trends$wtemp_slope > 0) # water temp: 20 out of 70
-sum(temp_trends$p.val.y < 0.05) # air temp: 20 out of 70
-sum(temp_trends$atemp_slope > 0) # air temp: 67 out of 70
-sum(temp_trends$p.val.y < 0.05 & temp_trends$atemp_slope > 0) # air temp: 20 out of 70
-sum(temp_trends$p.val.x < 0.05 & temp_trends$p.val.y < 0.05) # 11 out of 70 
-temp_trends[temp_trends$p.val.x < 0.05 & temp_trends$p.val.y < 0.05,]
 
 ### Extract daily mean discharge (Q) from keep_sites_temp. Takes ~10-15 min to run.
 keep_sites_temp <- keep_sites_temp[keep_sites_temp$site_no %in% wmet$site_no,]
@@ -448,172 +246,201 @@ keep_sites_Q <- subset(missing_data, missing_data[,3] > threshold) # 52 stations
 
 Q_daily_dat <- Q_daily_dat[Q_daily_dat$site_no %in% keep_sites_Q$site_no,]
 
-Q_daily_dat$year <- year(Q_daily_dat$Date)
-annual_mean_Q <- Q_daily_dat %>%
-  group_by(site_no, year) %>%
-  summarise(annual_mean_Q = mean(flow_cms, na.rm = TRUE))
-annual_mean_Q <- annual_mean_Q[!annual_mean_Q$site_no == "02423397",]
+library(wql)
 
-longtermQ <- Q_daily_dat %>%
-  group_by(site_no) %>%
-  summarise(LongTermMeanQ = round(mean(flow_cms, na.rm = TRUE),1))
+month_mean_wtemp <- wmet %>%
+  mutate(Month = month(Date)) %>%
+  group_by(site_no, Year, Month) %>%
+  summarise(monthly_mean_wtemp = mean(corWtemp, na.rm = TRUE))
+wide_month_mean_wtemp <- month_mean_wtemp %>%
+  pivot_wider(names_from = site_no, values_from = monthly_mean_wtemp)
 
-annual_mean_Q <- merge(annual_mean_Q, longtermQ, by = "site_no")
-annual_mean_Q$NormalizedAnnualMeanQ <- round(((annual_mean_Q$annual_mean_Q-annual_mean_Q$LongTermMeanQ)/annual_mean_Q$LongTermMeanQ)*100,digits = 1)
+wtemp_ts = ts(data = wide_month_mean_wtemp[, 3:72],
+              start = c(1996,1),
+              end = c(2021,12),
+              frequency = 12)
+wtemp_seaken <- seaKen(wtemp_ts)
+wtemp_seaken <- wtemp_seaken %>%
+  data.frame() %>%
+  cbind(site_no = row.names(wtemp_seaken),.) %>%
+  mutate(Status = if_else(
+    p.value < 0.05, "sig", "not sig"))
+wtemp_seaken <- wtemp_seaken[,c(1:2,4:6)]
+colnames(wtemp_seaken) <- c("site_no","sen.slope.wtemp","p.value.wtemp","miss.wtemp","status.wtemp")
 
-annual_precip <- met_dat_70 %>%
-  group_by(site_no, year) %>%
-  summarise(annual_total_precip_mm = sum(prcp..mm.day.))
+month_mean_atemp <- wmet %>%
+  mutate(Month = month(Date)) %>%
+  group_by(site_no, Year, Month) %>%
+  summarise(monthly_mean_atemp = mean(tmean, na.rm = TRUE))
+wide_month_mean_atemp <- month_mean_atemp %>%
+  pivot_wider(names_from = site_no, values_from = monthly_mean_atemp)
 
-longterm_precip <- annual_precip %>%
-  group_by(site_no) %>%
-  summarise(LongTermMeanTotalPrecip = round(mean(annual_total_precip_mm, na.rm = TRUE),1))
+atemp_ts = ts(data = wide_month_mean_atemp[, 3:72],
+              start = c(1996,1),
+              end = c(2021,12),
+              frequency = 12)
+atemp_seaken <- seaKen(atemp_ts)
+atemp_seaken <- atemp_seaken %>%
+  data.frame() %>%
+  cbind(site_no = row.names(atemp_seaken),.) %>%
+  mutate(Status = if_else(
+    p.value < 0.05, "sig", "not sig"))
+atemp_seaken <- atemp_seaken[,c(1:2,4:6)]
+colnames(atemp_seaken) <- c("site_no","sen.slope.atemp","p.value.atemp","miss.atemp","status.atemp")
 
-annual_precip <- merge(annual_precip, longterm_precip, by = "site_no")
-annual_precip$NormalizedAnnualMeanTotalPrecip <- round(((annual_precip$annual_total_precip_mm-annual_precip$LongTermMeanTotalPrecip)/annual_precip$LongTermMeanTotalPrecip)*100,digits = 1)
+month_mean_q <- Q_daily_dat %>%
+  mutate(Year = year(Date),
+         Month = month(Date)) %>%
+  group_by(site_no, Year, Month) %>%
+  summarise(monthly_mean_q = mean(flow_cms, na.rm = TRUE))
+month_mean_q <- month_mean_q[!month_mean_q$site_no == "02423397",] # site is missing 21 months of data between 2007-2008
+wide_month_mean_q <- month_mean_q %>%
+  pivot_wider(names_from = site_no, values_from = monthly_mean_q)
 
-aa <- unique(annual_precip$site_no)
-for(i in 1:length(aa)){
-  curDat = annual_precip[annual_precip$site_no == aa[i],]
-  ts = ts(data = curDat[, 3],
-          frequency = 1,
-          start = min(curDat$year),
-          end = max(curDat$year))
-  ManKen = MannKendall(ts)
-  ss = sens.slope(ts, conf.level = 0.95)
-  p.val = ManKen$sl
-  slope = ss$estimates
-  lower95 = ss$conf.int[1]
-  upper95 = ss$conf.int[2]
-  site_no = aa[i]
-  cur_temp_time = data.frame(site_no = aa[i],
-                             precip_slope = round(slope, 3),
-                             upper95 = round(upper95, 3),
-                             lower95 = round(lower95, 3),
-                             p.val = round(p.val, 4))
-  if( i == 1){
-    precip_trends = cur_temp_time
-  } else{
-    precip_trends = rbind(precip_trends, cur_temp_time)
-  }
-}
-for(i in 1:length(aa)){
-  curDat = annual_precip[annual_precip$site_no == aa[i],]
-  ts = ts(data = curDat[, 5],
-          frequency = 1,
-          start = min(curDat$year),
-          end = max(curDat$year))
-  ManKen = MannKendall(ts)
-  ss = sens.slope(ts, conf.level = 0.95)
-  p.val = ManKen$sl
-  slope = ss$estimates
-  lower95 = ss$conf.int[1]
-  upper95 = ss$conf.int[2]
-  site_no = aa[i]
-  cur_temp_time = data.frame(site_no = aa[i],
-                             normalized_precip_slope = round(slope, 3),
-                             normalized_upper95 = round(upper95, 3),
-                             normalized_lower95 = round(lower95, 3),
-                             normalized_precip_p.val = round(p.val, 4))
-  if( i == 1){
-    normalized_precip_trends = cur_temp_time
-  } else{
-    normalized_precip_trends = rbind(normalized_precip_trends, cur_temp_time)
-  }
-}
+q_ts = ts(data = wide_month_mean_q[, 3:53],
+          start = c(1996,1),
+          end = c(2021,12),
+          frequency = 12)
+q_seaken <- seaKen(q_ts)
+q_seaken <- q_seaken %>%
+  data.frame() %>%
+  cbind(site_no = row.names(q_seaken),.) %>%
+  mutate(Status = if_else(
+    p.value < 0.05, "sig", "not sig"))
+q_seaken <- q_seaken[,c(1:2,4:6)]
+colnames(q_seaken) <- c("site_no","sen.slope.q","p.value.q","miss.q","status.q")
 
-aa <- unique(annual_mean_Q$site_no)
-for(i in 1:length(aa)){
-  curDat = annual_mean_Q[annual_mean_Q$site_no == aa[i],]
-  ts = ts(data = curDat[, 3],
-          frequency = 1,
-          start = min(curDat$year),
-          end = max(curDat$year))
-  ManKen = MannKendall(ts)
-  ss = sens.slope(ts, conf.level = 0.95)
-  p.val = ManKen$sl
-  slope = ss$estimates
-  lower95 = ss$conf.int[1]
-  upper95 = ss$conf.int[2]
-  site_no = aa[i]
-  cur_temp_time = data.frame(site_no = aa[i],
-                             Q_slope = round(slope, 3),
-                             upper95 = round(upper95, 3),
-                             lower95 = round(lower95, 3),
-                             p.val = round(p.val, 4))
-  if( i == 1){
-    Q_trends = cur_temp_time
-  } else{
-    Q_trends = rbind(Q_trends, cur_temp_time)
-  }
-}
-for(i in 1:length(aa)){
-  curDat = annual_mean_Q[annual_mean_Q$site_no == aa[i],]
-  ts = ts(data = curDat[, 5],
-          frequency = 1,
-          start = min(curDat$year),
-          end = max(curDat$year))
-  ManKen = MannKendall(ts)
-  ss = sens.slope(ts, conf.level = 0.95)
-  p.val = ManKen$sl
-  slope = ss$estimates
-  lower95 = ss$conf.int[1]
-  upper95 = ss$conf.int[2]
-  site_no = aa[i]
-  cur_temp_time = data.frame(site_no = aa[i],
-                             normalized_Q_slope = round(slope, 3),
-                             normalized_upper95 = round(upper95, 3),
-                             normalized_lower95 = round(lower95, 3),
-                             normalized_Q_p.val = round(p.val, 4))
-  if( i == 1){
-    normalized_Q_trends = cur_temp_time
-  } else{
-    normalized_Q_trends = rbind(normalized_Q_trends, cur_temp_time)
-  }
-}
+met_dat_precip <- met_dat_wide[met_dat_wide$site_no %in% keep_sites_temp$site_no,]
+month_total_precip <- met_dat_precip %>%
+  mutate(Year = year(Date),
+         Month = month(Date)) %>%
+  group_by(site_no, Year, Month) %>%
+  summarise(monthly_total_precip_mm = sum(prcp..mm.day.))
+wide_month_total_precip <- month_total_precip %>%
+  pivot_wider(names_from = site_no, values_from = monthly_total_precip_mm)
 
-precip_trends <- merge(precip_trends,normalized_precip_trends, by = "site_no")
-Q_trends <- merge(Q_trends,normalized_Q_trends, by = "site_no")
-precipQ_trends <- merge(precip_trends, Q_trends, by = "site_no")
-precipQ_trends <- merge(precipQ_trends, hw_site, by = "site_no")
+precip_ts = ts(data = wide_month_total_precip[, 3:72],
+               start = c(1996,1),
+               end = c(2021,12),
+               frequency = 12)
+precip_seaken <- seaKen(precip_ts)
+precip_seaken <- precip_seaken %>%
+  data.frame() %>%
+  cbind(site_no = row.names(precip_seaken),.) %>%
+  mutate(Status = if_else(
+    p.value < 0.05, "sig", "not sig"))
+precip_seaken <- precip_seaken[,c(1:2,4:6)]
+colnames(precip_seaken) <- c("site_no","sen.slope.precip","p.value.precip","miss.precip","status.precip")
 
-anova_precip <- aov(precip_slope~Region, data = precipQ_trends)
+precipQ_trends <- merge(q_seaken,precip_seaken, by = "site_no", all = TRUE)
+temp_trends <- merge(wtemp_seaken,atemp_seaken, by = "site_no", all = TRUE)
+temp_precipQ_trends <- merge(temp_trends, precipQ_trends, by = "site_no", all = TRUE)
+
+library(ggplot2)
+
+usa_region <- data.frame(matrix(ncol = 2, nrow = 50))
+z <- c("STUSAB", "Region")
+colnames(usa_region) <- z
+usa_region$STUSAB <- c("IL","IN","KY","MO","OH","TN","WV",
+                       "IA","MI","MN","WI",
+                       "CT","DE","ME","MD","MA","NH","NJ","NY","PA","RI","VT",
+                       "ID","OR","WA",
+                       "AR","KS","LA","MS","OK","TX",
+                       "AL","FL","GA","NC","SC","VA",
+                       "AZ","CO","NM","UT",
+                       "CA","NV",
+                       "MT","NE","ND","SD","WY","AK","HI")
+usa_region$Region <- c("Central","Central","Central","Central","Central","Central","Central",
+                       "ENC","ENC","ENC","ENC",
+                       "NE","NE","NE","NE","NE","NE","NE","NE","NE","NE","NE",
+                       "NW","NW","NW",
+                       "South","South","South","South","South","South",
+                       "SE","SE","SE","SE","SE","SE",
+                       "SW","SW","SW","SW",
+                       "West","West",
+                       "WNC","WNC","WNC","WNC","WNC","Alaska","Hawaii")
+
+hw_site <- left_join(station_details, usa_region, by = 'STUSAB')
+temp_precipQ_trends <- merge(temp_precipQ_trends,hw_site, by = "site_no")
+
+cols <- c("NE" = "#d73027", "ENC" = "#f46d43", "SE" = "#ffffbf",
+          "WNC" = "#e0f3f8", "South" = "#abd9e9","SW" = "#74add1",
+          "NW" = "#4575b4","West" = "#313695","Alaska" = "#a50026")
+
+summary(lm(sen.slope.wtemp~sen.slope.atemp, data = temp_precipQ_trends))
+
+Fig4a <- ggplot(data = temp_precipQ_trends, aes(x = sen.slope.atemp, y = sen.slope.wtemp)) +
+  geom_abline(slope = 1, linetype = 'longdash') +
+  geom_hline(yintercept = 0, color = "black") +
+  geom_vline(xintercept = 0, color ="black") +
+  stat_smooth(method = 'lm', se = F, color = "red") +
+  geom_point(shape = 21, size = 4, aes(fill = factor(Region))) +
+  scale_fill_manual(values = cols) +
+  ylab(expression(atop(Annual~Water~Temp.~Trend,
+                       (degree*C~yr^-1)))) +
+  xlab(expression(Annual~Atmo~Temp.~Trend~(degree*C~yr^-1))) +
+  labs(fill = "Region") +
+  scale_y_continuous(breaks = seq(-0.06,0.06,0.02), limits = c(-0.06,0.07)) +
+  scale_x_continuous(breaks = seq(-0.02,0.06,0.02), limits = c(-0.02,0.06)) +
+  annotate("text", x = 0.001, y = 0.07, label = "y = 0.43x + 0.007", size = 6, hjust = 0) +
+  annotate("text", x = 0.001, y = 0.06, label = "p-value = 0.024", size = 6, hjust = 0) +
+  annotate("text", x = 0.001, y = 0.05, label = expression(paste(R^2," = 0.07")), size = 6, hjust = 0) +
+  annotate("text", x = 0.06, y = 0.07, label = "(a", size = 8) +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        text = element_text(size = 18, color = "black"),
+        axis.text.x = element_text(size = 18, color = "black"),
+        axis.text.y = element_text(size = 18, color = 'black'),
+        legend.title.align = 0.5,
+        legend.position = c(0.92,0.3))
+
+sum(temp_precipQ_trends$sen.slope.atemp > temp_precipQ_trends$sen.slope.wtemp) # 43 out of 70 (61%)
+sum(temp_precipQ_trends$sen.slope.atemp < temp_precipQ_trends$sen.slope.wtemp) # 27 out of 70 (39%)
+sum(temp_precipQ_trends$p.value.wtemp < 0.05) # water temp: 45 out of 70 (64%)
+sum(temp_precipQ_trends$sen.slope.wtemp > 0) # water temp: 59 out of 70 (84%)
+sum(temp_precipQ_trends$p.value.wtemp < 0.05 & temp_precipQ_trends$sen.slope.wtemp > 0) # water temp: 43 out of 70 (61%)
+sum(temp_precipQ_trends$p.value.atemp < 0.05) # air temp: 44 out of 70 (63%)
+sum(temp_precipQ_trends$sen.slope.atemp > 0) # air temp: 67 out of 70 (96%)
+sum(temp_precipQ_trends$p.value.atemp < 0.05 & temp_precipQ_trends$sen.slope.atemp > 0) # air temp: 44 out of 70 (63%)
+sum(temp_precipQ_trends$p.value.wtemp < 0.05 & temp_precipQ_trends$p.value.atemp < 0.05) # 31 out of 70 (44%)
+temp_precipQ_trends[temp_precipQ_trends$p.value.wtemp < 0.05 & temp_precipQ_trends$p.value.atemp < 0.05,]
+
+anova_precip <- aov(sen.slope.precip~Region, data = temp_precipQ_trends)
 summary(anova_precip)
 precip_anova_region <- TukeyHSD(anova_precip)
 precip_anova_region <- as.data.frame(precip_anova_region$Region)
 precip_anova_region[precip_anova_region$`p adj` < 0.05,]
-ggplot(precipQ_trends, aes(x=Region, y = precip_slope)) +
+ggplot(temp_precipQ_trends, aes(x=Region, y = sen.slope.precip)) +
   geom_boxplot() + theme_bw() +
-  ylab(expression(Annual~Mean~Precip.~Trend~(mm~yr^-1)))
+  ylab(expression(Annual~Precip.~Trend~(mm~yr^-1)))
 
-precipQ_trends %>%
+temp_precipQ_trends %>%
   group_by(Region) %>%
-  summarise(Mean = round(mean(precip_slope),digits = 1),
-            SD = round(sd(precip_slope),digits = 1))
-precipQ_trends %>%
+  summarise(Mean = round(mean(sen.slope.precip),digits = 1),
+            SD = round(sd(sen.slope.precip),digits = 1))
+temp_precipQ_trends %>%
   group_by(Region) %>%
-  summarise(Mean = mean(Q_slope),
-            SD = sd(Q_slope))
+  summarise(Mean = mean(sen.slope.q, na.rm = TRUE),
+            SD = sd(sen.slope.q, na.rm = TRUE))
 
-summary(lm(normalized_Q_slope~normalized_precip_slope, data = precipQ_trends))
+summary(lm(sen.slope.q~sen.slope.precip, data = temp_precipQ_trends))
 
-Fig4b <- ggplot(data = precipQ_trends, aes(x = normalized_precip_slope, y = normalized_Q_slope)) +
+Fig4b <- ggplot(data = temp_precipQ_trends, aes(x = sen.slope.precip, y = sen.slope.q)) +
   geom_abline(slope = 1, linetype = 'longdash') +
   geom_hline(yintercept = 0, color = "black") +
   geom_vline(xintercept = 0, color ="black") +
   stat_smooth(method = 'lm', se = F, color = 'red') +
   geom_point(shape = 21, size = 4, aes(fill = factor(Region))) +
   scale_fill_manual(values = cols) +
-  ylab(expression(atop(Normalized~Annual,
-                       Mean~Discharge~Trend~("%"~yr^-1)))) +
-  xlab(expression(Normalized~Annual~Total~Precip.~Trend~("%"~yr^-1))) +
+  ylab(expression(atop(Annual~Mean~Discharge~Trend, (m^3~s^-1~yr^-1)))) +
+  xlab(expression(Annual~Total~Precip.~Trend~(mm~yr^-1))) +
   labs(fill = "Region") +
-  scale_y_continuous(breaks = seq(-4,2,1), limits = c(-4,2)) +
-  scale_x_continuous(breaks = seq(-4,2,1), limits = c(-4,2)) +
-  annotate("text", x = -4, y = 2, label = "y = 0.74x - 0.22", size = 6, hjust = 0) +
-  annotate("text", x = -4, y = 1.5, label = "p-value < 0.001", size = 6, hjust = 0) +
-  annotate("text", x = -4, y = 1.0, label = expression(paste(R^2," = 0.28")), size = 6, hjust = 0) +
-  annotate("text", x = 2, y = -3.75, label = "(b", size = 8) +
+  # scale_y_continuous(breaks = seq(-4,2,1), limits = c(-4,2)) +
+  # scale_x_continuous(breaks = seq(-4,2,1), limits = c(-4,2)) +
+  # annotate("text", x = -4, y = 2, label = "y = 0.74x - 0.22", size = 6, hjust = 0) +
+  # annotate("text", x = -4, y = 1.5, label = "p-value < 0.001", size = 6, hjust = 0) +
+  # annotate("text", x = -4, y = 1.0, label = expression(paste(R^2," = 0.28")), size = 6, hjust = 0) +
+  # annotate("text", x = 2, y = -3.75, label = "(b", size = 8) +
   theme_bw() +
   theme(panel.grid = element_blank(),
         text = element_text(size = 18, color = "black"),
@@ -621,42 +448,125 @@ Fig4b <- ggplot(data = precipQ_trends, aes(x = normalized_precip_slope, y = norm
         axis.text.y = element_text(size = 18, color = 'black'),
         legend.position = "none")
 
-sum(precipQ_trends$p.val.y < 0.05) # 10 stat sig. discharge trends
-test <- precipQ_trends[precipQ_trends$p.val.y < 0.05,]
-round(min(test$Q_slope), digits = 2) # min stat. sig. Q trend = -1.14
-round(max(test$Q_slope), digits = 2) # max stat. sig. Q trend = 0.67
-sum(test$Q_slope < 0) # 7 out of 10 sites had stat. sig. negative trends
-test <- precipQ_trends[precipQ_trends$normalized_precip_slope < 0 & precipQ_trends$normalized_Q_slope < 0,]
-table(test$Region) # 17 sites total, 11 (out of 16) in NW, 5 (out of 6) in SW, and 1 (out of 2) in West
+sum(temp_precipQ_trends$p.value.q < 0.05, na.rm = TRUE) # 24 stat sig. discharge trends out of 51 (47)
+test <- temp_precipQ_trends[temp_precipQ_trends$p.value.q < 0.05,]
+round(min(test$sen.slope.q, na.rm = TRUE), digits = 2) # min stat. sig. Q trend = -4.28 cms
+round(max(test$sen.slope.q, na.rm = TRUE), digits = 2) # max stat. sig. Q trend = 1.04  cms
+sum(test$sen.slope.q < 0, na.rm = TRUE) # 17 out of 24 sites had stat. sig. negative trends
+table(test$Region) # 24 sites total: 2 (out of 4) in ENC, 2 (out of 11) in NE, 2 (out of 13) in SE, 10 (out of 16) in NW, 6 (out of 6) in SW, and 2 (out of 2) in West
 
-temp_precipQ_trends <- merge(annual_mean_wtemp, annual_mean_Q, by = c("site_no", "year"))
+summary(lm(sen.slope.wtemp~sen.slope.q, data = temp_precipQ_trends))
 
-summary(lm(NormalizedAnnualMeanWtemp~NormalizedAnnualMeanQ, data = temp_precipQ_trends))
-
-Fig4c <- ggplot(data = temp_precipQ_trends, aes(x = NormalizedAnnualMeanQ, y = NormalizedAnnualMeanWtemp)) +
+ggplot(data = temp_precipQ_trends, aes(x = sen.slope.wtemp, y = sen.slope.q)) +
   geom_hline(yintercept = 0, color = "black") +
   geom_vline(xintercept = 0, color ="black") +
   geom_point(alpha = 0.2, size = 2) +
   stat_smooth(method = 'lm', color = "red", se = F) +
-  xlab("Normalized Annual Mean Discharge (%)") +
-  ylab(expression(atop(Normalized~Annual,
-                       Mean~Water~Temp.~("%")))) +
-  scale_x_continuous(breaks = seq(-100,350,50), limits = c(-100, 350)) +
-  scale_y_continuous(breaks = seq(-25,30,5), limits = c(-25, 30)) +
-  annotate("text", x = 200, y = 30, label = "y = -0.037x - 0.033", size = 6, hjust = 0) +
-  annotate("text", x = 200, y = 25, label = "p-value < 0.001", size = 6, hjust = 0) +
-  annotate("text", x = 200, y = 20, label = expression(paste(R^2," = 0.08")), size = 6, hjust = 0) +
-  annotate("text", x = 350, y = -23.5, label = "(c", size = 8) +
+  xlab(expression(atop(Annual~Mean~Discharge~Trend, (m^3~s^-1~yr^-1)))) +
+  ylab(expression(atop(Annual~Mean~Water~Temp., (degree*C~yr^-1)))) +
+  # scale_x_continuous(breaks = seq(-100,350,50), limits = c(-100, 350)) +
+  # scale_y_continuous(breaks = seq(-25,30,5), limits = c(-25, 30)) +
+  # annotate("text", x = 200, y = 30, label = "y = -0.037x - 0.033", size = 6, hjust = 0) +
+  # annotate("text", x = 200, y = 25, label = "p-value < 0.001", size = 6, hjust = 0) +
+  # annotate("text", x = 200, y = 20, label = expression(paste(R^2," = 0.08")), size = 6, hjust = 0) +
+  # annotate("text", x = 350, y = -23.5, label = "(c", size = 8) +
   theme_bw() +
   theme(panel.grid = element_blank(),
         text = element_text(size = 18, color = "black"),
         axis.text.x = element_text(size = 18, color = "black"),
         axis.text.y = element_text(size = 18, color = 'black'))
 
+cols <- data.frame(Region = names(cols), color = cols)
+temp_precipQ_trends <- merge(temp_precipQ_trends,station_details, by ="site_no")
+temp_precipQ_trends <- merge(temp_precipQ_trends, usa_region, by = "STUSAB")
+temp_precipQ_trends <- merge(temp_precipQ_trends, cols, by = "Region", all.x = TRUE)
+temp_precipQ_trends$site_no <- paste0("<span style=\"color: ", temp_precipQ_trends$color, "\">", temp_precipQ_trends$site_no, "</span>")
+temp_precipQ_trends$Region <- factor(temp_precipQ_trends$Region,
+                                levels = c("SE","South","SW","West","NE","ENC","WNC","NW","Alaska"))
+
+temp_precipQ_trends <- temp_precipQ_trends[order(temp_precipQ_trends$Region),]
+temp_precipQ_trends$site_no <- factor(temp_precipQ_trends$site_no, levels = unique(temp_precipQ_trends$site_no))
+
+atemp_fig <- ggplot(data = temp_precipQ_trends, aes(x = site_no, y = sen.slope.atemp)) +
+  geom_hline(yintercept = 0, linetype = 'longdash') +
+  geom_point(aes(fill = factor(status.atemp)), shape = 21, size = 2) +
+  scale_fill_manual(name = "",
+                    labels = c("p-value > 0.05","p-value < 0.05"),
+                    values = c("white","black")) +
+  xlab("") +
+  ylab(expression(atop(Air~Temp.~Trend,(degree*C~yr^-1)))) +
+  scale_y_continuous(breaks = seq(-0.01,0.06,0.01), limits = c(-0.01,0.06)) +
+  theme_bw() +
+  theme(panel.grid.major = element_line(colour = "gray85",linetype="longdash",size=0.1),
+        text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, color = "black"),
+        axis.text.y = ggtext::element_markdown(size = 12),
+        legend.position = c(0.85,0.96),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12),
+        legend.background = element_blank(),
+        plot.margin=unit(c(1,1,1,-0.5), "cm")) +
+  coord_flip()
+
+wtemp_fig <- ggplot(data = temp_precipQ_trends, aes(x = site_no, y = sen.slope.wtemp)) +
+  geom_hline(yintercept = 0, linetype = 'longdash') +
+  geom_point(aes(fill = factor(status.wtemp)), shape = 21, size = 2) +
+  scale_fill_manual(name = "",
+                    labels = c("p-value > 0.05","p-value < 0.05"),
+                    values = c("white","black")) +
+  xlab("") +
+  ylab(expression(atop(Water~Temp.~Trend,(degree*C~yr^-1)))) +
+  scale_y_continuous(breaks = seq(-0.06,0.06,0.02), limits = c(-0.06,0.07)) +
+  theme_bw() +
+  theme(panel.grid.major = element_line(colour = "gray85",linetype="longdash",size=0.1),
+        text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, color = "black"),
+        axis.text.y = element_blank(),
+        legend.position = "none",
+        plot.margin=unit(c(1,1,1,-0.5), "cm")) +
+  coord_flip()
+
+precip_fig <- ggplot(data = temp_precipQ_trends, aes(x = site_no, y = sen.slope.precip)) +
+  geom_hline(yintercept = 0, linetype = 'longdash') +
+  geom_point(aes(fill = factor(status.precip)), shape = 21, size = 2) +
+  scale_fill_manual(name = "",
+                    labels = c("p-value > 0.05","p-value < 0.05"),
+                    values = c("white","black")) +
+  xlab("") +
+  ylab(expression(atop(Precipatation~Trend,(mm~yr^-1)))) +
+  scale_y_continuous(breaks = seq(-0.75,1.5,0.25), limits = c(-0.75,1.5)) +
+  theme_bw() +
+  theme(panel.grid.major = element_line(colour = "gray85",linetype="longdash",size=0.1),
+        text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, color = "black"),
+        axis.text.y = element_blank(),
+        legend.position = "none",
+        plot.margin=unit(c(1,1,1,-0.5), "cm")) +
+  coord_flip()
+
+q_fig <- ggplot(data = temp_precipQ_trends, aes(x = site_no, y = sen.slope.Q)) +
+  geom_hline(yintercept = 0, linetype = 'longdash') +
+  geom_point(aes(fill = factor(status.q)), shape = 21, size = 2, na.rm = T) +
+  scale_fill_manual(name = "",
+                    labels = c("p-value > 0.05","p-value < 0.05"),
+                    values = c("white","black"),
+                    na.translate=FALSE) +
+  xlab("") +
+  ylab(expression(atop(Discharge~Trend,(m^3~s^-1~~yr^-1)))) +
+  scale_y_continuous(breaks = seq(-4.4,1.4,0.4), limits = c(-4.4,1.4)) +
+  theme_bw() +
+  theme(panel.grid.major = element_line(colour = "gray85",linetype="longdash",size=0.1),
+        text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, color = "black", angle = 40, hjust = 1, vjust = 1),
+        axis.text.y = element_blank(),
+        legend.position = 'none',
+        plot.margin=unit(c(1,1,1,-1), "cm")) +
+  coord_flip()
+
 library(ggpubr)
 
 # width = 700 height = 1500
-ggarrange(Fig4a,Fig4b,Fig4c, ncol = 1, align = 'v')
+ggarrange(atemp_fig,precip_fig,q_fig,wtemp_fig, ncol = 1, align = 'v')
 
 setwd("F:/School/USGSdata/GitHub")
 station_details_70sites <- station_details[station_details$site_no %in% temp_trends$site_no,]
