@@ -138,7 +138,7 @@ station_details <- station_details[station_details$site_no %in% Wtemp_daily$site
 # https://www.nature.com/articles/s41597-021-00973-0#code-availability
 library(daymetr)
 
-met_dat <- download_daymet_batch(file_location = '82USGSsites_26YearWtemp_LatLong.csv',
+met_dat <- download_daymet_batch(file_location = '82USGSsites_26YearWtemp_LatLong.csv', # use daymetr_meteorological_sites.csv from RiverineHeatwaves GitHub repository [https://github.com/spencer-tassone/RiverineHeatwaves]
                                  start = 1996,
                                  end = 2021,
                                  internal = TRUE,
