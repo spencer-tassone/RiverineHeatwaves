@@ -5,6 +5,7 @@ library(lubridate)
 library(geojsonio)
 library(sp)
 library(readr)
+library(ggplot2)
 
 rm(list = ls())
 dev.off()
@@ -13,7 +14,7 @@ dev.off()
 statCd <- "00003" # statistics parameter code = mean
 startDate <- "1996-01-01"
 endDate <- "2021-12-31"
-states <- stateCd[1:51,]
+states <- stateCd[2:52,]
 result <- vector('list', nrow(states))
 for(i in 1:nrow(states)) {
   print(i)
@@ -33,7 +34,7 @@ full_station_list <- full_station_list[!duplicated(full_station_list$site_no_chr
 rm(list=setdiff(ls(), "full_station_list")) # 288 stations
 # write.csv(full_station_list, 'full_station_list.csv')
 
-### Extract daily mean water temperature from full_station_list. Also takes a while to run ~1-2 hours
+### Extract daily mean water temperature from full_station_list. Also takes a while to run ~1-1.5 hours
 startDate <- "1996-01-01"
 endDate <- "2021-12-31"
 dat_final_large <- readNWISdv(siteNumbers = full_station_list$site_no, # readNWISdv pulls daily mean values
@@ -45,8 +46,10 @@ dat_final_large <- renameNWISColumns(dat_final_large)
 Wtemp_daily <- dat_final_large[,1:5]
 startDate <- as.Date("1996-01-01")
 endDate <- as.Date("2021-12-31")
+unique(Wtemp_daily$site_no)
 full_ts <- as.data.frame(rep(seq(from = startDate, to = endDate, by = "day"),times = 287))
 colnames(full_ts)[1] <- "Date"
+length(seq(from = startDate, to = endDate, by = 'day'))
 full_site <- as.data.frame(rep(unique(Wtemp_daily$site_no),times = 9497))
 colnames(full_site)[1] <- "site_no"
 site_ts <- cbind(full_ts, full_site)
@@ -109,7 +112,7 @@ lat_long <- keep_sites_temp %>%
 x <- c("site","lat","lon")
 colnames(lat_long) <- x
 
-setwd("F:/School/USGSdata/GitHub")
+setwd("D:/School/USGSdata/GitHub")
 # write.csv(lat_long, 'Station_Details.csv') # in the csv be sure to remove first column which is a sequence of 1-82.
 
 station_list <-  full_station_list[(full_station_list$site_no %in% Wtemp_daily$site_no),]
@@ -336,8 +339,319 @@ precipQ_trends <- merge(q_seaken,precip_seaken, by = "site_no", all = TRUE)
 temp_trends <- merge(wtemp_seaken,atemp_seaken, by = "site_no", all = TRUE)
 temp_precipQ_trends <- merge(temp_trends, precipQ_trends, by = "site_no", all = TRUE)
 
-library(ggplot2)
+usa_region <- data.frame(matrix(ncol = 2, nrow = 50))
+z <- c("STUSAB", "Region")
+colnames(usa_region) <- z
+usa_region$STUSAB <- c("IL","IN","KY","MO","OH","TN","WV",
+                       "IA","MI","MN","WI",
+                       "CT","DE","ME","MD","MA","NH","NJ","NY","PA","RI","VT",
+                       "ID","OR","WA",
+                       "AR","KS","LA","MS","OK","TX",
+                       "AL","FL","GA","NC","SC","VA",
+                       "AZ","CO","NM","UT",
+                       "CA","NV",
+                       "MT","NE","ND","SD","WY","AK","HI")
+usa_region$Region <- c("Central","Central","Central","Central","Central","Central","Central",
+                       "ENC","ENC","ENC","ENC",
+                       "NE","NE","NE","NE","NE","NE","NE","NE","NE","NE","NE",
+                       "NW","NW","NW",
+                       "South","South","South","South","South","South",
+                       "SE","SE","SE","SE","SE","SE",
+                       "SW","SW","SW","SW",
+                       "West","West",
+                       "WNC","WNC","WNC","WNC","WNC","Alaska","Hawaii")
 
+#######################################################################################
+# Test relationships between annual mean water temp and annual normalized discharge
+# Test relationships between annual normalized discharge and annual total precipitation
+
+annual_precip <- met_dat_precip %>%
+  mutate(Year = year(Date)) %>%
+  group_by(site_no, Year) %>%
+  summarise(TotalPrecip_mm = sum(prcp..mm.day.))
+
+annual_mean_wtemp <- wmet %>%
+  group_by(site_no, Year) %>%
+  summarise(annual_mean_wtemp = mean(corWtemp, na.rm = TRUE))
+
+test <- Q_daily_dat
+test <- test[!test$site_no == "02423397",]
+longterm_meanQ <- test %>%
+  group_by(site_no) %>%
+  summarise(LongTermMeanQ = mean(flow_cms, na.rm = TRUE))
+test <- test %>%
+  mutate(Year = year(Date)) %>%
+  group_by(site_no, Year) %>%
+  summarise(AnnualMeanQ = mean(flow_cms, na.rm = TRUE))
+test <- merge(test, longterm_meanQ, by = 'site_no')
+test$NormalizedAnnualMeanQ <- round(((test$AnnualMeanQ-test$LongTermMeanQ)/test$LongTermMeanQ)*100,digits = 1)
+test <- merge(test, annual_precip, by = c('site_no', 'Year'))
+test <- merge(test, annual_mean_wtemp, by = c('site_no', 'Year'))
+test <- merge(test, station_details, by = 'site_no')
+test <- left_join(test, usa_region, by = 'STUSAB')
+
+test %>%
+  nest(data = -Region) %>%
+  mutate(model = map(data, ~lm(annual_mean_wtemp~NormalizedAnnualMeanQ, data = .)), tidied = map(model, tidy)) %>%
+  unnest(tidied)
+
+library(ggpubr)
+
+ggplot(data = test, aes(y = NormalizedAnnualMeanQ, x = TotalPrecip_mm)) +
+  geom_point() +
+  ylab("Normalized Annual Mean Discharge (%)") +
+  xlab("Annual Total Precip (mm)") +
+  stat_smooth(method = 'lm', se = FALSE, color = "red") +
+  stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~")),
+           r.accuracy = 0.01,
+           p.accuracy = 0.001,
+           label.x = 2000, label.y = 225, size = 4) +
+  stat_regline_equation(aes(label = ..eq.label..),
+                        label.x = 2000, label.y = 300, size = 4) +
+  theme_bw() +
+  facet_wrap(~Region)
+
+ggplot(data = test, aes(x = NormalizedAnnualMeanQ, y = annual_mean_wtemp)) +
+  geom_point() +
+  xlab("Normalized Annual Mean Discharge (%)") +
+  ylab("Annual Mean Water Temp (C)") +
+  stat_smooth(method = 'lm', se = FALSE, color = "red") +
+  stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~")),
+           r.accuracy = 0.01,
+           p.accuracy = 0.001,
+           label.x = 150, label.y = 22, size = 4) +
+  stat_regline_equation(aes(label = ..eq.label..),
+                        label.x = 150, label.y = 17, size = 4) +
+  theme_bw() +
+  facet_wrap(~Region)
+
+#######################################################################################
+
+hw_site <- left_join(station_details, usa_region, by = 'STUSAB')
+temp_precipQ_trends <- merge(temp_precipQ_trends,hw_site, by = "site_no")
+
+cols <- c("NE" = "#d73027", "ENC" = "#f46d43", "SE" = "#ffffbf",
+          "WNC" = "#e0f3f8", "South" = "#abd9e9","SW" = "#74add1",
+          "NW" = "#4575b4","West" = "#313695","Alaska" = "#a50026")
+
+summary(lm(sen.slope.wtemp~sen.slope.atemp, data = temp_precipQ_trends)) # p-value = 0.024, slope ? SE = 0.43 ? 0.19, r2 = 0.07
+temp_precipQ_trends %>%
+  group_by(Region) %>%
+  summarise(MeanATemp = round(mean(sen.slope.atemp),2),
+            MeanWTemp = round(mean(sen.slope.wtemp),2),
+            MeanPrecip = round(mean(sen.slope.precip),2),
+            MeanQ = round(mean(sen.slope.q, na.rm = TRUE),2),
+            MinWtemp = round(min(sen.slope.wtemp),2),
+            MaxWtemp = round(max(sen.slope.wtemp),2),
+            MinQ = round(min(sen.slope.q, na.rm = TRUE),2),
+            MaxQ = round(max(sen.slope.q, na.rm = TRUE),2))
+
+ggplot(data = temp_precipQ_trends, aes(x = sen.slope.atemp, y = sen.slope.wtemp)) +
+  geom_abline(slope = 1, linetype = 'longdash') +
+  geom_hline(yintercept = 0, color = "black") +
+  geom_vline(xintercept = 0, color ="black") +
+  stat_smooth(method = 'lm', se = F, color = "red") +
+  geom_point(shape = 21, size = 4, aes(fill = factor(Region))) +
+  scale_fill_manual(values = cols) +
+  ylab(expression(atop(Annual~Water~Temp.~Trend,
+                       (degree*C~yr^-1)))) +
+  xlab(expression(Annual~Atmo~Temp.~Trend~(degree*C~yr^-1))) +
+  labs(fill = "Region") +
+  scale_y_continuous(breaks = seq(-0.06,0.06,0.02), limits = c(-0.06,0.07)) +
+  scale_x_continuous(breaks = seq(-0.02,0.06,0.02), limits = c(-0.02,0.06)) +
+  annotate("text", x = 0.001, y = 0.07, label = "y = 0.43x + 0.007", size = 6, hjust = 0) +
+  annotate("text", x = 0.001, y = 0.06, label = "p-value = 0.024", size = 6, hjust = 0) +
+  annotate("text", x = 0.001, y = 0.05, label = expression(paste(R^2," = 0.07")), size = 6, hjust = 0) +
+  annotate("text", x = 0.06, y = 0.07, label = "(a", size = 8) +
+  guides(fill = guide_legend(ncol = 2)) +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        text = element_text(size = 18, color = "black"),
+        axis.text.x = element_text(size = 18, color = "black"),
+        axis.text.y = element_text(size = 18, color = 'black'),
+        legend.title.align = 0.5,
+        legend.position = c(0.17,0.17))
+
+sum(temp_precipQ_trends$sen.slope.atemp > temp_precipQ_trends$sen.slope.wtemp) # 43 out of 70 (61%)
+sum(temp_precipQ_trends$sen.slope.atemp < temp_precipQ_trends$sen.slope.wtemp) # 27 out of 70 (39%)
+sum(temp_precipQ_trends$p.value.wtemp < 0.05) # water temp: 45 out of 70 (64%)
+sum(temp_precipQ_trends$sen.slope.wtemp > 0) # water temp: 59 out of 70 (84%)
+sum(temp_precipQ_trends$p.value.wtemp < 0.05 & temp_precipQ_trends$sen.slope.wtemp > 0) # water temp: 43 out of 70 (61%)
+sum(temp_precipQ_trends$p.value.atemp < 0.05) # air temp: 44 out of 70 (63%)
+sum(temp_precipQ_trends$sen.slope.atemp > 0) # air temp: 67 out of 70 (96%)
+sum(temp_precipQ_trends$p.value.atemp < 0.05 & temp_precipQ_trends$sen.slope.atemp > 0) # air temp: 44 out of 70 (63%)
+sum(temp_precipQ_trends$p.value.wtemp < 0.05 & temp_precipQ_trends$p.value.atemp < 0.05) # 31 out of 70 (44%)
+temp_precipQ_trends[temp_precipQ_trends$p.value.wtemp < 0.05 & temp_precipQ_trends$p.value.atemp < 0.05,]
+
+anova_precip <- aov(sen.slope.precip~Region, data = temp_precipQ_trends)
+summary(anova_precip)
+precip_anova_region <- TukeyHSD(anova_precip)
+precip_anova_region <- as.data.frame(precip_anova_region$Region)
+precip_anova_region[precip_anova_region$`p adj` < 0.05,]
+ggplot(temp_precipQ_trends, aes(x=Region, y = sen.slope.precip)) +
+  geom_boxplot() + theme_bw() +
+  ylab(expression(Annual~Precip.~Trend~(mm~yr^-1)))
+
+temp_precipQ_trends %>%
+  group_by(Region) %>%
+  summarise(MeanPrecip = round(mean(sen.slope.precip),digits = 1),
+            SD_Precip = round(sd(sen.slope.precip),digits = 1),
+            MeanQ = mean(sen.slope.q, na.rm = TRUE),
+            SD_Q = sd(sen.slope.q, na.rm = TRUE))
+
+summary(lm(sen.slope.q~sen.slope.precip, data = temp_precipQ_trends)) # p-value < 0.001, slope ? SE = 0.73 ? 0.20, r2 = 0.21
+
+ggplot(data = temp_precipQ_trends, aes(x = sen.slope.precip, y = sen.slope.q)) +
+  geom_abline(slope = 1, linetype = 'longdash') +
+  geom_hline(yintercept = 0, color = "black") +
+  geom_vline(xintercept = 0, color ="black") +
+  stat_smooth(method = 'lm', se = F, color = 'red') +
+  geom_point(shape = 21, size = 4, aes(fill = factor(Region))) +
+  scale_fill_manual(values = cols) +
+  ylab(expression(atop(Annual~Mean~Discharge~Trend, (m^3~s^-1~yr^-1)))) +
+  xlab(expression(Annual~Total~Precip.~Trend~(mm~yr^-1))) +
+  labs(fill = "Region") +
+  scale_y_continuous(breaks = seq(-5,2,1), limits = c(-5,2)) +
+  scale_x_continuous(breaks = seq(-1,2,0.5), limits = c(-1,2)) +
+  annotate("text", x = 1.25, y = -3.5, label = "y = 0.73x - 0.20", size = 6, hjust = 0) +
+  annotate("text", x = 1.25, y = -4, label = "p-value < 0.001", size = 6, hjust = 0) +
+  annotate("text", x = 1.25, y = -4.5, label = expression(paste(R^2," = 0.21")), size = 6, hjust = 0) +
+  annotate("text", x = -1, y = 2, label = "(b", size = 8) +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        text = element_text(size = 18, color = "black"),
+        axis.text.x = element_text(size = 18, color = "black"),
+        axis.text.y = element_text(size = 18, color = 'black'),
+        legend.position = "none")
+
+sum(temp_precipQ_trends$p.value.q < 0.05, na.rm = TRUE) # 24 stat sig. discharge trends out of 51 (47)
+test <- temp_precipQ_trends[temp_precipQ_trends$p.value.q < 0.05,]
+round(min(test$sen.slope.q, na.rm = TRUE), digits = 2) # min stat. sig. Q trend = -4.28 cms
+round(max(test$sen.slope.q, na.rm = TRUE), digits = 2) # max stat. sig. Q trend = 1.04  cms
+sum(test$sen.slope.q < 0, na.rm = TRUE) # 17 out of 24 sites had stat. sig. negative trends
+table(test$Region) # 24 sites total: 2 (out of 4) in ENC, 2 (out of 11) in NE, 2 (out of 13) in SE, 10 (out of 16) in NW, 6 (out of 6) in SW, and 2 (out of 2) in West
+
+summary(lm(sen.slope.wtemp~sen.slope.q, data = temp_precipQ_trends)) # p-value = 0.688
+# 
+# ggplot(data = temp_precipQ_trends, aes(x = sen.slope.wtemp, y = sen.slope.q)) +
+#   geom_hline(yintercept = 0, color = "black") +
+#   geom_vline(xintercept = 0, color ="black") +
+#   geom_point(alpha = 0.2, size = 2) +
+#   stat_smooth(method = 'lm', color = "red", se = F) +
+#   xlab(expression(atop(Annual~Mean~Discharge~Trend, (m^3~s^-1~yr^-1)))) +
+#   ylab(expression(atop(Annual~Mean~Water~Temp., (degree*C~yr^-1)))) +
+#   # scale_x_continuous(breaks = seq(-100,350,50), limits = c(-100, 350)) +
+#   # scale_y_continuous(breaks = seq(-25,30,5), limits = c(-25, 30)) +
+#   # annotate("text", x = 200, y = 30, label = "y = -0.037x - 0.033", size = 6, hjust = 0) +
+#   # annotate("text", x = 200, y = 25, label = "p-value < 0.001", size = 6, hjust = 0) +
+#   # annotate("text", x = 200, y = 20, label = expression(paste(R^2," = 0.08")), size = 6, hjust = 0) +
+#   # annotate("text", x = 350, y = -23.5, label = "(c", size = 8) +
+#   theme_bw() +
+#   theme(panel.grid = element_blank(),
+#         text = element_text(size = 18, color = "black"),
+#         axis.text.x = element_text(size = 18, color = "black"),
+#         axis.text.y = element_text(size = 18, color = 'black'))
+
+cols <- data.frame(Region = names(cols), color = cols)
+temp_precipQ_trends <- merge(temp_precipQ_trends, cols, by = "Region", all.x = TRUE)
+temp_precipQ_trends$site_no <- paste0("<span style=\"color: ", temp_precipQ_trends$color, "\">", temp_precipQ_trends$site_no, "</span>")
+temp_precipQ_trends$Region <- factor(temp_precipQ_trends$Region,
+                                levels = c("SE","South","SW","West","NE","ENC","WNC","NW","Alaska"))
+
+temp_precipQ_trends <- temp_precipQ_trends[order(temp_precipQ_trends$Region),]
+temp_precipQ_trends$site_no <- factor(temp_precipQ_trends$site_no, levels = unique(temp_precipQ_trends$site_no))
+
+atemp_fig <- ggplot(data = temp_precipQ_trends, aes(x = site_no, y = sen.slope.atemp)) +
+  geom_hline(yintercept = 0, linetype = 'longdash') +
+  geom_point(aes(fill = factor(status.atemp)), shape = 21, size = 2) +
+  scale_fill_manual(name = "",
+                    labels = c("p-value > 0.05","p-value < 0.05"),
+                    values = c("white","black")) +
+  xlab("") +
+  ylab(expression(atop(Air~Temp.~Trend,(degree*C~yr^-1)))) +
+  annotate(geom="label",x = 69, y = 0.06,label = "(a", fill = "white", label.size = NA, size = 6) +
+  scale_y_continuous(breaks = seq(-0.01,0.06,0.01), limits = c(-0.01,0.06)) +
+  theme_bw() +
+  theme(panel.grid.major = element_line(colour = "gray85",linetype="longdash",size=0.1),
+        text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, color = "black"),
+        axis.text.y = ggtext::element_markdown(size = 12),
+        legend.position = 'none',
+        plot.margin=unit(c(1,1,1,-0.5), "cm")) +
+  coord_flip()
+
+wtemp_fig <- ggplot(data = temp_precipQ_trends, aes(x = site_no, y = sen.slope.wtemp)) +
+  geom_hline(yintercept = 0, linetype = 'longdash') +
+  geom_point(aes(fill = factor(status.wtemp)), shape = 21, size = 2) +
+  scale_fill_manual(name = "",
+                    labels = c("p-value > 0.05","p-value < 0.05"),
+                    values = c("white","black")) +
+  xlab("") +
+  ylab(expression(atop(Water~Temp.~Trend,(degree*C~yr^-1)))) +
+  annotate(geom="label",x = 69, y = 0.07,label = "(b", fill = "white", label.size = NA, size = 6) +
+  scale_y_continuous(breaks = seq(-0.06,0.06,0.02), limits = c(-0.06,0.07)) +
+  theme_bw() +
+  theme(panel.grid.major = element_line(colour = "gray85",linetype="longdash",size=0.1),
+        text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, color = "black"),
+        axis.text.y = element_blank(),
+        legend.position = "none",
+        plot.margin=unit(c(1,1,1,-1), "cm")) +
+  coord_flip()
+
+precip_fig <- ggplot(data = temp_precipQ_trends, aes(x = site_no, y = sen.slope.precip)) +
+  geom_hline(yintercept = 0, linetype = 'longdash') +
+  geom_point(aes(fill = factor(status.precip)), shape = 21, size = 2) +
+  scale_fill_manual(name = "",
+                    labels = c("p-value > 0.05","p-value < 0.05"),
+                    values = c("white","black")) +
+  xlab("") +
+  ylab(expression(atop(Precipatation~Trend,(mm~yr^-1)))) +
+  annotate(geom="label",x = 69, y = 1.5,label = "(c", fill = "white", label.size = NA, size = 6) +
+  scale_y_continuous(breaks = seq(-0.5,1.5,0.5), limits = c(-0.75,1.5)) +
+  theme_bw() +
+  theme(panel.grid.major = element_line(colour = "gray85",linetype="longdash",size=0.1),
+        text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, color = "black"),
+        axis.text.y = element_blank(),
+        legend.position = "none",
+        plot.margin=unit(c(1,1,1,-1), "cm")) +
+  coord_flip()
+
+q_fig <- ggplot(data = temp_precipQ_trends, aes(x = site_no, y = sen.slope.q)) +
+  geom_hline(yintercept = 0, linetype = 'longdash') +
+  geom_point(aes(fill = factor(status.q)), shape = 21, size = 2, na.rm = T) +
+  scale_fill_manual(name = "",
+                    labels = c("p-value > 0.05","p-value < 0.05"),
+                    values = c("white","black"),
+                    na.translate=FALSE) +
+  xlab("") +
+  ylab(expression(atop(Discharge~Trend,(m^3~s^-1~~yr^-1)))) +
+  annotate(geom="label",x = 69, y = 1.25,label = "(d", fill = "white", label.size = NA, size = 6) +
+  scale_y_continuous(breaks = seq(-4.0,1.0,0.5), limits = c(-4.5,1.25)) +
+  theme_bw() +
+  theme(panel.grid.major = element_line(colour = "gray85",linetype="longdash",size=0.1),
+        text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, color = "black", angle = 40, hjust = 1, vjust = 1),
+        axis.text.y = element_blank(),
+        legend.position = c(0.3,0.96),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 14),
+        plot.margin=unit(c(1,1,1,-1), "cm")) +
+  coord_flip()
+
+library(ggpubr)
+
+# width = 1500 height = 1100
+ggarrange(atemp_fig,wtemp_fig,precip_fig,q_fig, nrow = 1, align = 'h', widths = c(1.4,1,1,1))
+
+# setwd("F:/School/USGSdata/GitHub")
+# station_details_70sites <- station_details[station_details$site_no %in% temp_trends$site_no,]
+# write.csv(station_details_70sites, '70station_details.csv')
+# write.csv(wmet,'Wtemp_daily_dat.csv')
+# write.csv(Q_daily_dat,'Q_daily_dat.csv')
+
+temp_precipQ_trends <- merge(temp_trends, precipQ_trends, by = "site_no", all = TRUE)
 usa_region <- data.frame(matrix(ncol = 2, nrow = 50))
 z <- c("STUSAB", "Region")
 colnames(usa_region) <- z
@@ -367,127 +681,25 @@ cols <- c("NE" = "#d73027", "ENC" = "#f46d43", "SE" = "#ffffbf",
           "WNC" = "#e0f3f8", "South" = "#abd9e9","SW" = "#74add1",
           "NW" = "#4575b4","West" = "#313695","Alaska" = "#a50026")
 
-summary(lm(sen.slope.wtemp~sen.slope.atemp, data = temp_precipQ_trends))
-
-Fig4a <- ggplot(data = temp_precipQ_trends, aes(x = sen.slope.atemp, y = sen.slope.wtemp)) +
-  geom_abline(slope = 1, linetype = 'longdash') +
-  geom_hline(yintercept = 0, color = "black") +
-  geom_vline(xintercept = 0, color ="black") +
-  stat_smooth(method = 'lm', se = F, color = "red") +
-  geom_point(shape = 21, size = 4, aes(fill = factor(Region))) +
-  scale_fill_manual(values = cols) +
-  ylab(expression(atop(Annual~Water~Temp.~Trend,
-                       (degree*C~yr^-1)))) +
-  xlab(expression(Annual~Atmo~Temp.~Trend~(degree*C~yr^-1))) +
-  labs(fill = "Region") +
-  scale_y_continuous(breaks = seq(-0.06,0.06,0.02), limits = c(-0.06,0.07)) +
-  scale_x_continuous(breaks = seq(-0.02,0.06,0.02), limits = c(-0.02,0.06)) +
-  annotate("text", x = 0.001, y = 0.07, label = "y = 0.43x + 0.007", size = 6, hjust = 0) +
-  annotate("text", x = 0.001, y = 0.06, label = "p-value = 0.024", size = 6, hjust = 0) +
-  annotate("text", x = 0.001, y = 0.05, label = expression(paste(R^2," = 0.07")), size = 6, hjust = 0) +
-  annotate("text", x = 0.06, y = 0.07, label = "(a", size = 8) +
-  theme_bw() +
-  theme(panel.grid = element_blank(),
-        text = element_text(size = 18, color = "black"),
-        axis.text.x = element_text(size = 18, color = "black"),
-        axis.text.y = element_text(size = 18, color = 'black'),
-        legend.title.align = 0.5,
-        legend.position = c(0.92,0.3))
-
-sum(temp_precipQ_trends$sen.slope.atemp > temp_precipQ_trends$sen.slope.wtemp) # 43 out of 70 (61%)
-sum(temp_precipQ_trends$sen.slope.atemp < temp_precipQ_trends$sen.slope.wtemp) # 27 out of 70 (39%)
-sum(temp_precipQ_trends$p.value.wtemp < 0.05) # water temp: 45 out of 70 (64%)
-sum(temp_precipQ_trends$sen.slope.wtemp > 0) # water temp: 59 out of 70 (84%)
-sum(temp_precipQ_trends$p.value.wtemp < 0.05 & temp_precipQ_trends$sen.slope.wtemp > 0) # water temp: 43 out of 70 (61%)
-sum(temp_precipQ_trends$p.value.atemp < 0.05) # air temp: 44 out of 70 (63%)
-sum(temp_precipQ_trends$sen.slope.atemp > 0) # air temp: 67 out of 70 (96%)
-sum(temp_precipQ_trends$p.value.atemp < 0.05 & temp_precipQ_trends$sen.slope.atemp > 0) # air temp: 44 out of 70 (63%)
-sum(temp_precipQ_trends$p.value.wtemp < 0.05 & temp_precipQ_trends$p.value.atemp < 0.05) # 31 out of 70 (44%)
-temp_precipQ_trends[temp_precipQ_trends$p.value.wtemp < 0.05 & temp_precipQ_trends$p.value.atemp < 0.05,]
-
-anova_precip <- aov(sen.slope.precip~Region, data = temp_precipQ_trends)
-summary(anova_precip)
-precip_anova_region <- TukeyHSD(anova_precip)
-precip_anova_region <- as.data.frame(precip_anova_region$Region)
-precip_anova_region[precip_anova_region$`p adj` < 0.05,]
-ggplot(temp_precipQ_trends, aes(x=Region, y = sen.slope.precip)) +
-  geom_boxplot() + theme_bw() +
-  ylab(expression(Annual~Precip.~Trend~(mm~yr^-1)))
-
-temp_precipQ_trends %>%
-  group_by(Region) %>%
-  summarise(Mean = round(mean(sen.slope.precip),digits = 1),
-            SD = round(sd(sen.slope.precip),digits = 1))
-temp_precipQ_trends %>%
-  group_by(Region) %>%
-  summarise(Mean = mean(sen.slope.q, na.rm = TRUE),
-            SD = sd(sen.slope.q, na.rm = TRUE))
-
-summary(lm(sen.slope.q~sen.slope.precip, data = temp_precipQ_trends))
-
-Fig4b <- ggplot(data = temp_precipQ_trends, aes(x = sen.slope.precip, y = sen.slope.q)) +
-  geom_abline(slope = 1, linetype = 'longdash') +
-  geom_hline(yintercept = 0, color = "black") +
-  geom_vline(xintercept = 0, color ="black") +
-  stat_smooth(method = 'lm', se = F, color = 'red') +
-  geom_point(shape = 21, size = 4, aes(fill = factor(Region))) +
-  scale_fill_manual(values = cols) +
-  ylab(expression(atop(Annual~Mean~Discharge~Trend, (m^3~s^-1~yr^-1)))) +
-  xlab(expression(Annual~Total~Precip.~Trend~(mm~yr^-1))) +
-  labs(fill = "Region") +
-  # scale_y_continuous(breaks = seq(-4,2,1), limits = c(-4,2)) +
-  # scale_x_continuous(breaks = seq(-4,2,1), limits = c(-4,2)) +
-  # annotate("text", x = -4, y = 2, label = "y = 0.74x - 0.22", size = 6, hjust = 0) +
-  # annotate("text", x = -4, y = 1.5, label = "p-value < 0.001", size = 6, hjust = 0) +
-  # annotate("text", x = -4, y = 1.0, label = expression(paste(R^2," = 0.28")), size = 6, hjust = 0) +
-  # annotate("text", x = 2, y = -3.75, label = "(b", size = 8) +
-  theme_bw() +
-  theme(panel.grid = element_blank(),
-        text = element_text(size = 18, color = "black"),
-        axis.text.x = element_text(size = 18, color = "black"),
-        axis.text.y = element_text(size = 18, color = 'black'),
-        legend.position = "none")
-
-sum(temp_precipQ_trends$p.value.q < 0.05, na.rm = TRUE) # 24 stat sig. discharge trends out of 51 (47)
-test <- temp_precipQ_trends[temp_precipQ_trends$p.value.q < 0.05,]
-round(min(test$sen.slope.q, na.rm = TRUE), digits = 2) # min stat. sig. Q trend = -4.28 cms
-round(max(test$sen.slope.q, na.rm = TRUE), digits = 2) # max stat. sig. Q trend = 1.04  cms
-sum(test$sen.slope.q < 0, na.rm = TRUE) # 17 out of 24 sites had stat. sig. negative trends
-table(test$Region) # 24 sites total: 2 (out of 4) in ENC, 2 (out of 11) in NE, 2 (out of 13) in SE, 10 (out of 16) in NW, 6 (out of 6) in SW, and 2 (out of 2) in West
-
-summary(lm(sen.slope.wtemp~sen.slope.q, data = temp_precipQ_trends))
-
-ggplot(data = temp_precipQ_trends, aes(x = sen.slope.wtemp, y = sen.slope.q)) +
-  geom_hline(yintercept = 0, color = "black") +
-  geom_vline(xintercept = 0, color ="black") +
-  geom_point(alpha = 0.2, size = 2) +
-  stat_smooth(method = 'lm', color = "red", se = F) +
-  xlab(expression(atop(Annual~Mean~Discharge~Trend, (m^3~s^-1~yr^-1)))) +
-  ylab(expression(atop(Annual~Mean~Water~Temp., (degree*C~yr^-1)))) +
-  # scale_x_continuous(breaks = seq(-100,350,50), limits = c(-100, 350)) +
-  # scale_y_continuous(breaks = seq(-25,30,5), limits = c(-25, 30)) +
-  # annotate("text", x = 200, y = 30, label = "y = -0.037x - 0.033", size = 6, hjust = 0) +
-  # annotate("text", x = 200, y = 25, label = "p-value < 0.001", size = 6, hjust = 0) +
-  # annotate("text", x = 200, y = 20, label = expression(paste(R^2," = 0.08")), size = 6, hjust = 0) +
-  # annotate("text", x = 350, y = -23.5, label = "(c", size = 8) +
-  theme_bw() +
-  theme(panel.grid = element_blank(),
-        text = element_text(size = 18, color = "black"),
-        axis.text.x = element_text(size = 18, color = "black"),
-        axis.text.y = element_text(size = 18, color = 'black'))
-
 cols <- data.frame(Region = names(cols), color = cols)
-temp_precipQ_trends <- merge(temp_precipQ_trends,station_details, by ="site_no")
-temp_precipQ_trends <- merge(temp_precipQ_trends, usa_region, by = "STUSAB")
 temp_precipQ_trends <- merge(temp_precipQ_trends, cols, by = "Region", all.x = TRUE)
-temp_precipQ_trends$site_no <- paste0("<span style=\"color: ", temp_precipQ_trends$color, "\">", temp_precipQ_trends$site_no, "</span>")
+temp_precipQ_trends$site_no_col <- paste0("<span style=\"color: ", temp_precipQ_trends$color, "\">", temp_precipQ_trends$site_no, "</span>")
 temp_precipQ_trends$Region <- factor(temp_precipQ_trends$Region,
-                                levels = c("SE","South","SW","West","NE","ENC","WNC","NW","Alaska"))
+                                     levels = c("SE","South","SW","West","NE","ENC","WNC","NW","Alaska"))
 
 temp_precipQ_trends <- temp_precipQ_trends[order(temp_precipQ_trends$Region),]
 temp_precipQ_trends$site_no <- factor(temp_precipQ_trends$site_no, levels = unique(temp_precipQ_trends$site_no))
 
-atemp_fig <- ggplot(data = temp_precipQ_trends, aes(x = site_no, y = sen.slope.atemp)) +
+SIfig4_atemp <- ggplot(data = temp_precipQ_trends, aes(x = site_no, y = sen.slope.atemp)) +
+  geom_rect(xmin = 69.5, xmax = Inf, fill = "#a50026", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 48.5, xmax = 69.5, fill = "#4575b4", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 45.5, xmax = 48.5, fill = "#e0f3f8", ymin = -Inf, ymax = Inf, alpha = 0.06) +
+  geom_rect(xmin = 41.5, xmax = 45.5, fill = "#f46d43", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 30.5, xmax = 41.5, fill = "#d73027", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 28.5, xmax = 30.5, fill = "#313695", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 18.5, xmax = 28.5, fill = "#74add1", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 13.5, xmax = 18.5, fill = "#abd9e9", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = -Inf, xmax = 13.5, fill = "#ffffbf", ymin = -Inf, ymax = Inf, alpha = 0.03) +
   geom_hline(yintercept = 0, linetype = 'longdash') +
   geom_point(aes(fill = factor(status.atemp)), shape = 21, size = 2) +
   scale_fill_manual(name = "",
@@ -496,19 +708,26 @@ atemp_fig <- ggplot(data = temp_precipQ_trends, aes(x = site_no, y = sen.slope.a
   xlab("") +
   ylab(expression(atop(Air~Temp.~Trend,(degree*C~yr^-1)))) +
   scale_y_continuous(breaks = seq(-0.01,0.06,0.01), limits = c(-0.01,0.06)) +
+  annotate(geom="label",x = 68, y = 0.06,label = "(a", fill = NA, label.size = NA, size = 6) +
   theme_bw() +
-  theme(panel.grid.major = element_line(colour = "gray85",linetype="longdash",size=0.1),
+  theme(panel.grid.major = element_line(colour = "black",linetype="longdash",size=0.1),
         text = element_text(size = 14),
         axis.text.x = element_text(size = 12, color = "black"),
-        axis.text.y = ggtext::element_markdown(size = 12),
-        legend.position = c(0.85,0.96),
-        legend.title = element_blank(),
-        legend.text = element_text(size = 12),
-        legend.background = element_blank(),
+        axis.text.y = element_text(size = 12, color = "black"),
+        legend.position = 'none',
         plot.margin=unit(c(1,1,1,-0.5), "cm")) +
   coord_flip()
 
-wtemp_fig <- ggplot(data = temp_precipQ_trends, aes(x = site_no, y = sen.slope.wtemp)) +
+SIfig4_wtemp <- ggplot(data = temp_precipQ_trends, aes(x = site_no, y = sen.slope.wtemp)) +
+  geom_rect(xmin = 69.5, xmax = Inf, fill = "#a50026", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 48.5, xmax = 69.5, fill = "#4575b4", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 45.5, xmax = 48.5, fill = "#e0f3f8", ymin = -Inf, ymax = Inf, alpha = 0.06) +
+  geom_rect(xmin = 41.5, xmax = 45.5, fill = "#f46d43", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 30.5, xmax = 41.5, fill = "#d73027", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 28.5, xmax = 30.5, fill = "#313695", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 18.5, xmax = 28.5, fill = "#74add1", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 13.5, xmax = 18.5, fill = "#abd9e9", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = -Inf, xmax = 13.5, fill = "#ffffbf", ymin = -Inf, ymax = Inf, alpha = 0.03) +
   geom_hline(yintercept = 0, linetype = 'longdash') +
   geom_point(aes(fill = factor(status.wtemp)), shape = 21, size = 2) +
   scale_fill_manual(name = "",
@@ -516,17 +735,27 @@ wtemp_fig <- ggplot(data = temp_precipQ_trends, aes(x = site_no, y = sen.slope.w
                     values = c("white","black")) +
   xlab("") +
   ylab(expression(atop(Water~Temp.~Trend,(degree*C~yr^-1)))) +
+  annotate(geom="label",x = 68, y = 0.07,label = "(b", fill = NA, label.size = NA, size = 6) +
   scale_y_continuous(breaks = seq(-0.06,0.06,0.02), limits = c(-0.06,0.07)) +
   theme_bw() +
-  theme(panel.grid.major = element_line(colour = "gray85",linetype="longdash",size=0.1),
+  theme(panel.grid.major = element_line(colour = "black",linetype="longdash",size=0.1),
         text = element_text(size = 14),
         axis.text.x = element_text(size = 12, color = "black"),
         axis.text.y = element_blank(),
         legend.position = "none",
-        plot.margin=unit(c(1,1,1,-0.5), "cm")) +
+        plot.margin=unit(c(1,1,1,-1), "cm")) +
   coord_flip()
 
-precip_fig <- ggplot(data = temp_precipQ_trends, aes(x = site_no, y = sen.slope.precip)) +
+SIfig4_precip <- ggplot(data = temp_precipQ_trends, aes(x = site_no, y = sen.slope.precip)) +
+  geom_rect(xmin = 69.5, xmax = Inf, fill = "#a50026", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 48.5, xmax = 69.5, fill = "#4575b4", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 45.5, xmax = 48.5, fill = "#e0f3f8", ymin = -Inf, ymax = Inf, alpha = 0.06) +
+  geom_rect(xmin = 41.5, xmax = 45.5, fill = "#f46d43", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 30.5, xmax = 41.5, fill = "#d73027", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 28.5, xmax = 30.5, fill = "#313695", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 18.5, xmax = 28.5, fill = "#74add1", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 13.5, xmax = 18.5, fill = "#abd9e9", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = -Inf, xmax = 13.5, fill = "#ffffbf", ymin = -Inf, ymax = Inf, alpha = 0.03) +
   geom_hline(yintercept = 0, linetype = 'longdash') +
   geom_point(aes(fill = factor(status.precip)), shape = 21, size = 2) +
   scale_fill_manual(name = "",
@@ -534,17 +763,27 @@ precip_fig <- ggplot(data = temp_precipQ_trends, aes(x = site_no, y = sen.slope.
                     values = c("white","black")) +
   xlab("") +
   ylab(expression(atop(Precipatation~Trend,(mm~yr^-1)))) +
-  scale_y_continuous(breaks = seq(-0.75,1.5,0.25), limits = c(-0.75,1.5)) +
+  annotate(geom="label",x = 68, y = 1.5,label = "(c", fill = NA, label.size = NA, size = 6) +
+  scale_y_continuous(breaks = seq(-0.5,1.5,0.5), limits = c(-0.75,1.5)) +
   theme_bw() +
-  theme(panel.grid.major = element_line(colour = "gray85",linetype="longdash",size=0.1),
+  theme(panel.grid.major = element_line(colour = "black",linetype="longdash",size=0.1),
         text = element_text(size = 14),
         axis.text.x = element_text(size = 12, color = "black"),
         axis.text.y = element_blank(),
         legend.position = "none",
-        plot.margin=unit(c(1,1,1,-0.5), "cm")) +
+        plot.margin=unit(c(1,1,1,-1), "cm")) +
   coord_flip()
 
-q_fig <- ggplot(data = temp_precipQ_trends, aes(x = site_no, y = sen.slope.Q)) +
+SIfig4_q <- ggplot(data = temp_precipQ_trends, aes(x = site_no, y = sen.slope.q)) +
+  geom_rect(xmin = 69.5, xmax = Inf, fill = "#a50026", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 48.5, xmax = 69.5, fill = "#4575b4", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 45.5, xmax = 48.5, fill = "#e0f3f8", ymin = -Inf, ymax = Inf, alpha = 0.06) +
+  geom_rect(xmin = 41.5, xmax = 45.5, fill = "#f46d43", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 30.5, xmax = 41.5, fill = "#d73027", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 28.5, xmax = 30.5, fill = "#313695", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 18.5, xmax = 28.5, fill = "#74add1", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 13.5, xmax = 18.5, fill = "#abd9e9", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = -Inf, xmax = 13.5, fill = "#ffffbf", ymin = -Inf, ymax = Inf, alpha = 0.03) +
   geom_hline(yintercept = 0, linetype = 'longdash') +
   geom_point(aes(fill = factor(status.q)), shape = 21, size = 2, na.rm = T) +
   scale_fill_manual(name = "",
@@ -553,23 +792,20 @@ q_fig <- ggplot(data = temp_precipQ_trends, aes(x = site_no, y = sen.slope.Q)) +
                     na.translate=FALSE) +
   xlab("") +
   ylab(expression(atop(Discharge~Trend,(m^3~s^-1~~yr^-1)))) +
-  scale_y_continuous(breaks = seq(-4.4,1.4,0.4), limits = c(-4.4,1.4)) +
+  annotate(geom="label",x = 68, y = 1.25,label = "(d", fill = NA, label.size = NA, size = 6) +
+  scale_y_continuous(breaks = seq(-4.0,1.0,0.5), limits = c(-4.5,1.25)) +
   theme_bw() +
-  theme(panel.grid.major = element_line(colour = "gray85",linetype="longdash",size=0.1),
+  theme(panel.grid.major = element_line(colour = "black",linetype="longdash",size=0.1),
         text = element_text(size = 14),
         axis.text.x = element_text(size = 12, color = "black", angle = 40, hjust = 1, vjust = 1),
         axis.text.y = element_blank(),
-        legend.position = 'none',
+        legend.position = c(0.27,0.96),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 14),
+        legend.background = element_blank(),
+        legend.key = element_blank(),
         plot.margin=unit(c(1,1,1,-1), "cm")) +
   coord_flip()
 
-library(ggpubr)
-
-# width = 700 height = 1500
-ggarrange(atemp_fig,precip_fig,q_fig,wtemp_fig, ncol = 1, align = 'v')
-
-setwd("F:/School/USGSdata/GitHub")
-station_details_70sites <- station_details[station_details$site_no %in% temp_trends$site_no,]
-write.csv(station_details_70sites, '70station_details.csv')
-write.csv(wmet,'Wtemp_daily_dat.csv')
-write.csv(Q_daily_dat,'Q_daily_dat.csv')
+# width = 1500 height = 1100
+ggarrange(SIfig4_atemp,SIfig4_wtemp,SIfig4_precip,SIfig4_q, nrow = 1, align = 'h', widths = c(1.4,1,1,1))
