@@ -12,7 +12,7 @@ library(broom)
 rm(list = ls())
 dev.off()
 
-setwd("F:/School/USGSdata/GitHub")
+setwd("D:/School/USGSdata/GitHub")
 
 Wtemp_daily_dat <- read.csv('Wtemp_daily_dat.csv')
 Wtemp_daily_dat$Date <- as.Date(Wtemp_daily_dat$Date)
@@ -130,49 +130,6 @@ trends_wtemp_Q$Region <- factor(trends_wtemp_Q$Region,
 trends_wtemp_Q <- trends_wtemp_Q[order(trends_wtemp_Q$Region),]
 trends_wtemp_Q$site_no <- factor(trends_wtemp_Q$site_no, levels = unique(trends_wtemp_Q$site_no))
 
-wtemp_fig <- ggplot(data = trends_wtemp_Q, aes(x = site_no, y = sen.slope.wtemp)) +
-  geom_hline(yintercept = 0, linetype = 'longdash') +
-  geom_point(aes(fill = factor(status.wtemp)), shape = 21, size = 2) +
-  scale_fill_manual(name = "",
-                    labels = c("p-value > 0.05","p-value < 0.05"),
-                    values = c("white","black")) +
-  xlab("") +
-  ylab(expression(atop(Water~Temp.~Trend,(degree*C~yr^-1)))) +
-  scale_y_continuous(breaks = seq(-0.06,0.06,0.02), limits = c(-0.06,0.07)) +
-  theme_bw() +
-  theme(panel.grid.major = element_line(colour = "gray85",linetype="longdash",size=0.1),
-        text = element_text(size = 14),
-        axis.text.x = element_text(size = 12, color = "black"),
-        axis.text.y = ggtext::element_markdown(size = 12),
-        legend.position = c(0.22,0.96),
-        legend.title = element_blank(),
-        legend.text = element_text(size = 12),
-        legend.background = element_blank(),
-        plot.margin=unit(c(1,1,1,-0.5), "cm")) +
-  coord_flip()
-
-q_fig <- ggplot(data = trends_wtemp_Q, aes(x = site_no, y = sen.slope.Q)) +
-  geom_hline(yintercept = 0, linetype = 'longdash') +
-  geom_point(aes(fill = factor(status.Q)), shape = 21, size = 2, na.rm = T) +
-  scale_fill_manual(name = "",
-                    labels = c("p-value > 0.05","p-value < 0.05"),
-                    values = c("white","black"),
-                    na.translate=FALSE) +
-  xlab("") +
-  ylab(expression(atop(Discharge~Trend,(m^3~s^-1~~yr^-1)))) +
-  scale_y_continuous(breaks = seq(-4.4,1.4,0.4), limits = c(-4.4,1.4)) +
-  theme_bw() +
-  theme(panel.grid.major = element_line(colour = "gray85",linetype="longdash",size=0.1),
-        text = element_text(size = 14),
-        axis.text.x = element_text(size = 12, color = "black", angle = 40, hjust = 1, vjust = 1),
-        axis.text.y = element_blank(),
-        legend.position = 'none',
-        plot.margin=unit(c(1,1,1,-1), "cm")) +
-  coord_flip()
-
-# width = 900, height = 1000
-ggarrange(wtemp_fig, q_fig, ncol = 2, align = 'h', widths = c(1.5,1.1))
-
 ### Run HW & CS analysis
 
 zz <- unique(Wtemp_daily_dat$site_no)
@@ -286,7 +243,7 @@ ggboxplot(test, x = "Region", y = "TotalEvents_HW", outlier.shape = NA) +
 
 hw_cs_site %>%
   group_by(Region) %>%
-  summarise(MedianTotEvents = round(median(TotalEvents_HW)),
+  summarise(Mean = round(mean(TotalEvents_HW)),
             SD = round(sd(TotalEvents_HW)),
             max = max(TotalEvents_HW),
             min = min(TotalEvents_HW))
@@ -335,7 +292,7 @@ hw_anova <- aov(intensity_cumulative_relThresh~factor(Month), data = hw)
 summary(hw_anova)
 TukeyHSD(hw_anova)
 
-hw %>%
+SIfig3 <- hw %>%
   mutate(Month = factor(Month, levels = c("1","2","3","4","5","6","7","8","9","10",'11',"12"))) %>%
   ggplot(aes(x = Month, y = intensity_cumulative_relThresh)) +
   geom_boxplot(position = "dodge", color = "black", outlier.shape = NA) +
@@ -349,6 +306,7 @@ hw %>%
         axis.text.x = element_text(size = 16, color = "black"),
         axis.text.y = element_text(size = 16, color = 'black'),
         legend.background = element_blank())
+SIfig3
 
 ### Mean residual Q (cms) during heatwaves
 
@@ -903,7 +861,7 @@ for(i in 1:length(ee)){
 
 #######################################################################################
 #                                                                                     #
-#                                     Site                                       #
+#                                     Site                                            #
 #                                                                                     #
 #######################################################################################
 
@@ -1024,7 +982,7 @@ hw_MKSS_results <- rbind(hw_time_output, hw_region_output, hw_season_output, hw_
 hw_MKSS_results <- left_join(hw_MKSS_results,fdr_table, by = c("TestType","Rank"))
 hw_MKSS_results$SigTest <- ifelse(hw_MKSS_results$p.val < hw_MKSS_results$FDR_0.1,"Sig","NS")
 hw_MKSS_results_sig <- hw_MKSS_results[c(1,31:32,43:48,67:69),] # three results have p-value < 0.05 but greater than the adjusted critical value. Felt worthy of reporting them along with their critical value.
-View(hw_MKSS_results_sig)
+View(hw_MKSS_results_sig) # Table 1
 # write.csv(hw_MKSS_results_sig, '70sites_MKSS_results.csv')
 
 hw_meanResidQ <- hw %>%
@@ -1108,14 +1066,21 @@ moderate$year <- as.numeric(moderate$year)
 strong$year <- as.numeric(strong$year)
 severe$year <- as.numeric(severe$year)
 extreme$year <- as.numeric(extreme$year)
-moderate_lm <- lm(TotalEvents_HW~year, data = moderate)
-strong_lm <- lm(TotalEvents_HW~year, data = strong)
-severe_lm <- lm(TotalEvents_HW~year, data = severe)
-extreme_lm <- lm(TotalEvents_HW~year, data = extreme)
-summary(moderate_lm)
-summary(strong_lm)
-summary(severe_lm)
-summary(extreme_lm)
+
+summary(lm(TotalEvents_HW~year, data = moderate)) # p-value = 0.003, slope = 3.4
+summary(lm(TotalEvents_HW~year, data = strong))
+summary(lm(TotalEvents_HW~year, data = severe))
+summary(lm(TotalEvents_HW~year, data = extreme))
+
+summary(lm(TotalDuration_HW~year, data = moderate)) # p-value = 0.002, slope = 30.1
+summary(lm(TotalDuration_HW~year, data = strong))
+summary(lm(TotalDuration_HW~year, data = severe))
+summary(lm(TotalDuration_HW~year, data = extreme))
+
+summary(lm(TotalIntensity_HW~year, data = moderate)) # p-value = 0.01, slope = 10.5
+summary(lm(TotalIntensity_HW~year, data = strong))
+summary(lm(TotalIntensity_HW~year, data = severe))
+summary(lm(TotalIntensity_HW~year, data = extreme))
 
 library(scales)
 
@@ -1162,8 +1127,9 @@ Fig2c <- ggplot(data = hw_cat_total) +
 # width = 600 height = 900
 ggarrange(Fig2a,Fig2b,Fig2c, ncol = 1, align = 'v')
 
+hw_site_output <- rbind(hw_site_duration, hw_site_intensity, hw_site_freq)
+colnames(hw_site_output)[3] <- 'site_no'
 hw_site_output <- hw_site_output[,2:5]
-
 hw_site_output <- hw_site_output %>%
   pivot_wider(names_from = Variable,
               values_from = c(slope, p.val))
@@ -1182,8 +1148,6 @@ hw_site_output <- hw_site_output %>%
     p.val_Avg.Duration < 0.05, "sig", "not sig"))
 
 hw_site_output <- hw_site_output[,c(1:2,5,8,3,6,9,4,7,10)]
-
-hw_site_output <- merge(hw_site_output,station_details, by = "site_no", all = TRUE)
 
 usa_region <- data.frame(matrix(ncol = 2, nrow = 50))
 z <- c("STUSAB", "Region")
@@ -1207,21 +1171,42 @@ usa_region$Region <- c("Central","Central","Central","Central","Central","Centra
                        "West","West",
                        "WNC","WNC","WNC","WNC","WNC","Alaska","Hawaii")
 
+hw_site <- left_join(station_details, usa_region, by = 'STUSAB')
+hw_site_output <- merge(hw_site_output,hw_site, by = "site_no")
+
 cols1 <- c("NE" = "#d73027", "ENC" = "#f46d43", "SE" = "#cfcf74",
            "WNC" = "#bababa", "South" = "#abd9e9","SW" = "#74add1",
            "NW" = "#4575b4","West" = "#313695","Alaska" = "#a50026")
 cols1 <- data.frame(Region = names(cols1), color = cols1)
 
-hw_site_output <- merge(hw_site_output, usa_region, by = "STUSAB")
-site_hw_trends <- merge(hw_site_output, cols1, by = "Region", all.x = TRUE)
-site_hw_trends$site_no <- paste0("<span style=\"color: ", site_hw_trends$color, "\">", site_hw_trends$site_no, "</span>")
-site_hw_trends$Region <- factor(site_hw_trends$Region,
+hw_site_output <- merge(hw_site_output, cols1, by = "Region", all.x = TRUE)
+hw_site_output$site_no_col <- paste0("<span style=\"color: ", hw_site_output$color, "\">", hw_site_output$site_no, "</span>")
+hw_site_output$Region <- factor(hw_site_output$Region,
                                      levels = c("SE","South","SW","West","NE","ENC","WNC","NW","Alaska"))
 
-site_hw_trends <- site_hw_trends[order(site_hw_trends$Region),]
-site_hw_trends$site_no <- factor(site_hw_trends$site_no, levels = unique(site_hw_trends$site_no))
+hw_site_output <- hw_site_output[order(hw_site_output$Region),]
+hw_site_output$site_no <- factor(hw_site_output$site_no, levels = unique(hw_site_output$site_no))
+hw_site_output <- hw_site_output[,c(1:2,9:10,5,3:4,11,6:8,12:20,30:33)]
+round(sum(hw_site_output$slope_Frequency > 0)/70,2) # 49%
+round(sum(hw_site_output$slope_Frequency <= 0)/70,2) # 51%
+round(sum(hw_site_output$slope_Frequency < 0)/70,2) # 6%
+round(sum(hw_site_output$slope_Avg.Duration > 0)/70,2) # 61%
+round(sum(hw_site_output$slope_Avg.Duration <= 0)/70,2) # 39%
+round(sum(hw_site_output$slope_Avg.Duration < 0)/70,2) # 13%
+round(sum(hw_site_output$slope_Avg.CuInt > 0)/70,2) # 60%
+round(sum(hw_site_output$slope_Avg.CuInt <= 0)/70,2) # 40%
+round(sum(hw_site_output$slope_Avg.CuInt < 0)/70,2) # 20%
 
-Fig3a <- ggplot(data = site_hw_trends, aes(x = site_no, y = slope_Frequency)) +
+Fig3a <- ggplot(data = hw_site_output, aes(x = site_no, y = slope_Frequency)) +
+  geom_rect(xmin = 69.5, xmax = Inf, fill = "#a50026", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 48.5, xmax = 69.5, fill = "#4575b4", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 45.5, xmax = 48.5, fill = "#e0f3f8", ymin = -Inf, ymax = Inf, alpha = 0.06) +
+  geom_rect(xmin = 41.5, xmax = 45.5, fill = "#f46d43", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 30.5, xmax = 41.5, fill = "#d73027", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 28.5, xmax = 30.5, fill = "#313695", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 18.5, xmax = 28.5, fill = "#74add1", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 13.5, xmax = 18.5, fill = "#abd9e9", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = -Inf, xmax = 13.5, fill = "#ffffbf", ymin = -Inf, ymax = Inf, alpha = 0.03) +
   geom_hline(yintercept = 0, linetype = 'longdash') +
   geom_point(aes(fill = factor(status_p.val_Frequency)), shape = 21, size = 2) +
   scale_fill_manual(name = "",
@@ -1231,17 +1216,26 @@ Fig3a <- ggplot(data = site_hw_trends, aes(x = site_no, y = slope_Frequency)) +
   ylab(expression(atop(Frequency~Trend,
                        (events~yr^-1)))) +
   scale_y_continuous(breaks = seq(-0.1,0.2,0.05), limits = c(-0.1,0.2)) +
-  annotate("text", x = 69, y = 0.2, label = "(a", size = 6) +
+  annotate(geom="label",x = 68, y = -0.095,label = "(a", fill = NA, label.size = NA, size = 6) +
   theme_bw() +
-  theme(panel.grid.major = element_line(colour = "gray85",linetype="longdash",size=0.1),
+  theme(panel.grid.major = element_line(colour = "black",linetype="longdash",size=0.1),
         text = element_text(size = 14),
         axis.text.x = element_text(size = 12, color = "black"),
-        axis.text.y = ggtext::element_markdown(size = 12),
+        axis.text.y = element_text(size = 12, color = "black"),
         legend.position = 'none',
         plot.margin=unit(c(1,1,1,-0.5), "cm")) +
   coord_flip()
 
-Fig3b <- ggplot(data = site_hw_trends, aes(x = site_no, y = slope_Avg.Duration)) +
+Fig3b <- ggplot(data = hw_site_output, aes(x = site_no, y = slope_Avg.Duration)) +
+  geom_rect(xmin = 69.5, xmax = Inf, fill = "#a50026", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 48.5, xmax = 69.5, fill = "#4575b4", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 45.5, xmax = 48.5, fill = "#e0f3f8", ymin = -Inf, ymax = Inf, alpha = 0.06) +
+  geom_rect(xmin = 41.5, xmax = 45.5, fill = "#f46d43", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 30.5, xmax = 41.5, fill = "#d73027", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 28.5, xmax = 30.5, fill = "#313695", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 18.5, xmax = 28.5, fill = "#74add1", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 13.5, xmax = 18.5, fill = "#abd9e9", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = -Inf, xmax = 13.5, fill = "#ffffbf", ymin = -Inf, ymax = Inf, alpha = 0.03) +
   geom_hline(yintercept = 0, linetype = 'longdash') +
   geom_point(aes(fill = factor(status_p.val_Avg.Duration)), shape = 21, size = 2) +
   scale_fill_manual(name = "",
@@ -1252,9 +1246,9 @@ Fig3b <- ggplot(data = site_hw_trends, aes(x = site_no, y = slope_Avg.Duration))
                        (days~yr^-1)))) +
   scale_y_continuous(breaks = seq(-0.3,0.5,0.1), limits = c(-0.3,0.5),
                      labels = scales::number_format(accuracy = 0.1)) +
-  annotate("text", x = 69, y = 0.5, label = "(b", size = 6) +
+  annotate(geom="label",x = 68, y = 0.5,label = "(b", fill = NA, label.size = NA, size = 6) +
   theme_bw() +
-  theme(panel.grid.major = element_line(colour = "gray85",linetype="longdash",size=0.1),
+  theme(panel.grid.major = element_line(colour = "black",linetype="longdash",size=0.1),
         text = element_text(size = 14),
         axis.text.x = element_text(size = 12, color = "black"),
         axis.text.y = element_blank(),
@@ -1262,7 +1256,16 @@ Fig3b <- ggplot(data = site_hw_trends, aes(x = site_no, y = slope_Avg.Duration))
         plot.margin=unit(c(1,1,1,-1), "cm")) +
   coord_flip()
 
-Fig3c <- ggplot(data = site_hw_trends, aes(x = site_no, y = slope_Avg.CuInt)) +
+Fig3c <- ggplot(data = hw_site_output, aes(x = site_no, y = slope_Avg.CuInt)) +
+  geom_rect(xmin = 69.5, xmax = Inf, fill = "#a50026", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 48.5, xmax = 69.5, fill = "#4575b4", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 45.5, xmax = 48.5, fill = "#e0f3f8", ymin = -Inf, ymax = Inf, alpha = 0.06) +
+  geom_rect(xmin = 41.5, xmax = 45.5, fill = "#f46d43", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 30.5, xmax = 41.5, fill = "#d73027", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 28.5, xmax = 30.5, fill = "#313695", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 18.5, xmax = 28.5, fill = "#74add1", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = 13.5, xmax = 18.5, fill = "#abd9e9", ymin = -Inf, ymax = Inf, alpha = 0.03) +
+  geom_rect(xmin = -Inf, xmax = 13.5, fill = "#ffffbf", ymin = -Inf, ymax = Inf, alpha = 0.03) +
   geom_hline(yintercept = 0, linetype = 'longdash') +
   geom_point(aes(fill = factor(status_p.val_Avg.CuInt)), shape = 21, size = 2) +
   scale_fill_manual(name = "",
@@ -1272,9 +1275,9 @@ Fig3c <- ggplot(data = site_hw_trends, aes(x = site_no, y = slope_Avg.CuInt)) +
   ylab(expression(atop(Intensity~Trend,
                        (degree*C~days~yr^-1)))) +
   scale_y_continuous(breaks = seq(-0.4,0.4,0.1), limits = c(-0.4,0.4)) +
-  annotate("text", x = 69, y = 0.4, label = "(c", size = 6) +
+  annotate(geom="label",x = 68, y = 0.4,label = "(c", fill = NA, label.size = NA, size = 6) +
   theme_bw() +
-  theme(panel.grid.major = element_line(colour = "gray85",linetype="longdash",size=0.1),
+  theme(panel.grid.major = element_line(colour = "black",linetype="longdash",size=0.1),
         text = element_text(size = 14),
         axis.text.x = element_text(size = 12, color = "black"),
         axis.text.y = element_blank(),
@@ -1282,6 +1285,7 @@ Fig3c <- ggplot(data = site_hw_trends, aes(x = site_no, y = slope_Avg.CuInt)) +
         legend.title = element_blank(),
         legend.text = element_text(size = 12),
         legend.background = element_blank(),
+        legend.key = element_blank(),
         plot.margin=unit(c(1,1,1,-1), "cm")) +
   coord_flip()
 
@@ -1328,21 +1332,6 @@ ggplot(data = hw_sum2, aes(x = year, y = MeanAnnualTotalDuration)) +
         axis.text.x = element_text(size = 16, color = "black"),
         axis.text.y = element_text(size = 16, color = "black"))
 
-ggplot(data = hw_sum2, aes(x = year, y = MeanAnnualMaxIntensity)) +
-  geom_smooth(method = "lm", formula = y~x, color = "red", size = 0.5, se = TRUE) +
-  geom_point(shape = 21, size = 2, color = "black", fill = "white", stroke = 1) +
-  xlab("Year") +
-  scale_x_continuous(breaks = seq(1996, 2021, 4)) +
-  scale_y_continuous(breaks = seq(0, 4, 1), limits = c(0,4)) +
-  ylab("Avg. Max HW Intensity") +
-  annotate("text", x = 1996.75, y = 4, label = "p-value = 0.277", size = 5, hjust = 0) +
-  # annotate("text", x = 2019.5, y = 55, label = "(b", size = 6, hjust = 0) +
-  theme_bw() +
-  theme(panel.grid = element_blank(),
-        text = element_text(size = 16),
-        axis.text.x = element_text(size = 16, color = "black"),
-        axis.text.y = element_text(size = 16, color = "black"))
-
 residualQ$year <- year(residualQ$Date)
 annualQ <- residualQ %>%
   group_by(site_no,year) %>%
@@ -1377,9 +1366,13 @@ round(sd(test2$TotalEvents_HW.x), digits = 0) # standard dev. of 2 HW events per
 
 library(ggridges)
 
+cols4 <- c("NE" = "#d73027", "ENC" = "#f46d43", "SE" = "#ffffbf",
+           "WNC" = "#e0f3f8", "South" = "#abd9e9","SW" = "#74add1",
+           "NW" = "#4575b4","West" = "#313695","Alaska" = "#a50026")
+
 ggplot(test2, aes(x = NormalizedAnnualMeanQ, y = Region, fill = Region)) +
   geom_density_ridges(scale = 3, rel_min_height = 0.01) +
-  scale_fill_manual(values = cols3) +
+  scale_fill_manual(values = cols4) +
   geom_vline(xintercept = 0, linetype = "longdash") +
   labs(y = "Region",
        x = "Normalized Annual Q (%)") +
@@ -1394,7 +1387,7 @@ ggplot(test2, aes(x = NormalizedAnnualMeanQ, y = Region, fill = Region)) +
 SIfig1_totHW <- ggplot(test2, aes(x = TotalEvents_HW.x, y = Region, fill = Region, height = ..density..)) +
   geom_density_ridges(scale = 3, rel_min_height = 0.01,
                       stat = "density", trim = TRUE) +
-  scale_fill_manual(values = cols3) +
+  scale_fill_manual(values = cols4) +
   scale_x_continuous(breaks = seq(0,12,1), limits = c(0,12)) +
   labs(y = "Region",
        x = "Annual Total HW Events") +
@@ -1409,7 +1402,7 @@ SIfig1_totHW <- ggplot(test2, aes(x = TotalEvents_HW.x, y = Region, fill = Regio
 SIfig1_durHW <- ggplot(hw, aes(x = duration, y = Region, fill = Region, height = ..density..)) +
   geom_density_ridges(scale = 3, rel_min_height = 0.0005,
                       stat = "density", trim = TRUE) +
-  scale_fill_manual(values = cols3) +
+  scale_fill_manual(values = cols4) +
   scale_x_continuous(breaks = seq(5,105,10), limits = c(5,105)) +
   labs(y = "Region",
        x = "HW Duration (days)") +
@@ -1425,7 +1418,7 @@ SIfig1_durHW <- ggplot(hw, aes(x = duration, y = Region, fill = Region, height =
 SIfig1_intHW <- ggplot(hw, aes(x = intensity_max_relThresh, y = Region, fill = Region, height = ..density..)) +
   geom_density_ridges(scale = 3, rel_min_height = 0.0005,
                       stat = "density", trim = TRUE) +
-  scale_fill_manual(values = cols3) +
+  scale_fill_manual(values = cols4) +
   scale_x_continuous(breaks = seq(0,10,1), limits = c(0,10)) +
   ylab("Region") +
   xlab(expression(HW~Max~Intensity~(degree*C))) +
@@ -1443,7 +1436,7 @@ ggarrange(SIfig1_totHW,SIfig1_durHW,SIfig1_intHW, nrow = 1, align = 'h', widths 
 
 # width = 750 height = 550
 
-Fig3a <- hw %>%
+SIfig2a <- hw %>%
   mutate(Month = factor(Month, levels = c("1","2","3","4","5","6","7","8","9","10",'11',"12"))) %>%
   ggplot(aes(x = Month, y = MeanResidaulQ)) +
   geom_boxplot(position = "dodge", color = "black", outlier.shape = NA) +
@@ -1465,7 +1458,7 @@ Fig3a <- hw %>%
         legend.position = c(0.12,0.95),
         legend.background = element_blank())
 
-Fig3b <- ggplot(data = hw_q, aes(x = AnnualMeanQ, y = TotalEvents_HW)) +
+SIfig2b <- ggplot(data = hw_q, aes(x = AnnualMeanQ, y = TotalEvents_HW)) +
   geom_point(shape = 21, size = 2, color = "black", fill = "black", stroke = 1, alpha = 0.2) +
   scale_x_continuous(breaks = seq(0, 1500, 100), limits = c(0,1500)) +
   scale_y_continuous(breaks = seq(0, 12, 1), limits = c(0,12)) +
@@ -1481,4 +1474,4 @@ Fig3b <- ggplot(data = hw_q, aes(x = AnnualMeanQ, y = TotalEvents_HW)) +
         legend.title = element_blank())
 
 # width = 600 height = 900
-ggarrange(Fig3a,Fig3b, ncol = 1, align = 'v')
+ggarrange(SIfig2a,SIfig2b, ncol = 1, align = 'v')
