@@ -14,27 +14,13 @@ dev.off()
 
 setwd("D:/School/USGSdata/GitHub")
 
-Wtemp_daily_dat <- read.csv('Wtemp_daily_dat.csv')
-Wtemp_daily_dat$Date <- as.Date(Wtemp_daily_dat$Date)
-Wtemp_daily_dat$site_no <- as.character(Wtemp_daily_dat$site_no)
-Wtemp_daily_dat <- Wtemp_daily_dat[,2:25]
-head(which(Wtemp_daily_dat$site_no == "10301500", arr.ind=TRUE)) # take 1 minus the smallest number and put into next line of code
-Wtemp_daily_dat <- Wtemp_daily_dat %>%
-  mutate(site_no = ifelse(row_number()<=427050, paste0("0", site_no), site_no))
+Wtemp_daily_dat <- read.csv('Wtemp_daily_dat.csv', colClasses = c(site_no = "character",
+                                                                  Date = "Date"))
 
-station_details <- read.csv('70station_details.csv') # be sure to remove the first column in the csv prior to importing
-station_details$site_no <- as.character(station_details$site_no)
-head(which(station_details$site_no == "10301500", arr.ind=TRUE)) # take 1 minus the smallest number and put into next line of code
-station_details <- station_details %>%
-  mutate(site_no = ifelse(row_number()<=45, paste0("0", site_no), site_no))
-station_details[70,2] <- "420451121510000"
+residualQ <- read.csv('ResidualQ_v2.csv', colClasses = c(site_no = "character",
+                                                      Date = "Date"))
 
-residualQ <- read.csv('ResidualQ.csv')
-residualQ$Date <- as.Date(residualQ$Date)
-residualQ$site_no <- as.character(residualQ$site_no)
-head(which(residualQ$site_no == "10301500", arr.ind=TRUE)) # take 1 minus the smallest number and put into next line of code
-residualQ <- residualQ %>%
-  mutate(site_no = ifelse(row_number()<=303680, paste0("0", site_no), site_no))
+station_details <- read.csv('Station_Details.csv', colClasses = c(site_no = "character"))
 
 ### Are there long-term trends in annual mean water temperature and discharge?
 
@@ -87,9 +73,9 @@ Q_seaken <- Q_seaken %>%
 Q_seaken <- Q_seaken[,c(1:2,4:6)]
 colnames(Q_seaken) <- c("site_no","sen.slope.Q","p.value.Q","miss.Q","status.Q")
 
-sum(Q_seaken$p.value <= 0.05) # 25 (MK = 10)
+sum(Q_seaken$p.value <= 0.05) # 24 (MK = 10)
 sum(Q_seaken$sen.slope > 0) # 24 (MK = 26)
-sum(Q_seaken$sen.slope > 0 & Q_seaken$p.value <= 0.05) # 8 (MK = 3)
+sum(Q_seaken$sen.slope > 0 & Q_seaken$p.value <= 0.05) # 7 (MK = 3)
 
 trends_wtemp_Q <- merge(wtemp_seaken,Q_seaken, by = "site_no", all = TRUE)
 
@@ -244,6 +230,7 @@ ggboxplot(test, x = "Region", y = "TotalEvents_HW", outlier.shape = NA) +
 hw_cs_site %>%
   group_by(Region) %>%
   summarise(Mean = round(mean(TotalEvents_HW)),
+            Median = round(median(TotalEvents_HW)),
             SD = round(sd(TotalEvents_HW)),
             max = max(TotalEvents_HW),
             min = min(TotalEvents_HW))
@@ -254,7 +241,6 @@ colnames(saveDatWarm)[23] <- "site_no"
 colnames(saveDatCold)[23] <- "site_no"
 hw <- unique(setDT(station_details)[, .(site_no, STUSAB)])[setDT(saveDatWarm), on = "site_no"]
 hw <- unique(setDT(station_details)[, .(site_no, StreamOrder)])[setDT(hw), on = "site_no"]
-hw <- unique(setDT(station_details)[, .(site_no, DrainageArea_km2)])[setDT(hw), on = "site_no"]
 hw <- unique(setDT(station_details)[, .(site_no, Reservoir)])[setDT(hw), on = "site_no"]
 
 hw$Year <- year(hw$date_peak)
@@ -983,7 +969,6 @@ hw_MKSS_results <- left_join(hw_MKSS_results,fdr_table, by = c("TestType","Rank"
 hw_MKSS_results$SigTest <- ifelse(hw_MKSS_results$p.val < hw_MKSS_results$FDR_0.1,"Sig","NS")
 hw_MKSS_results_sig <- hw_MKSS_results[c(1,31:32,43:48,67:69),] # three results have p-value < 0.05 but greater than the adjusted critical value. Felt worthy of reporting them along with their critical value.
 View(hw_MKSS_results_sig) # Table 1
-# write.csv(hw_MKSS_results_sig, '70sites_MKSS_results.csv')
 
 hw_meanResidQ <- hw %>%
   group_by(StreamOrder) %>%
@@ -1028,7 +1013,6 @@ test <- saveCatWarm
 colnames(test)[12] <- "site_no"
 test <- merge(test, station_details, by = "site_no")
 test <- merge(test, usa_region, by = "STUSAB")
-test <- test[,c(1:21,32:34)]
 test_extreme <- test[test$category == 'IV Extreme',] # 13 events
 test_severe <- test[test$category == 'III Severe',]
 test_severe <- test_severe %>% filter(rank(desc(i_max))<=26) # need 26 events to add to the 13 cat 4 events to get 39 total aka top 1% most intense heatwaves
@@ -1186,7 +1170,6 @@ hw_site_output$Region <- factor(hw_site_output$Region,
 
 hw_site_output <- hw_site_output[order(hw_site_output$Region),]
 hw_site_output$site_no <- factor(hw_site_output$site_no, levels = unique(hw_site_output$site_no))
-hw_site_output <- hw_site_output[,c(1:2,9:10,5,3:4,11,6:8,12:20,30:33)]
 round(sum(hw_site_output$slope_Frequency > 0)/70,2) # 49%
 round(sum(hw_site_output$slope_Frequency <= 0)/70,2) # 51%
 round(sum(hw_site_output$slope_Frequency < 0)/70,2) # 6%
@@ -1275,7 +1258,16 @@ Fig3c <- ggplot(data = hw_site_output, aes(x = site_no, y = slope_Avg.CuInt)) +
   ylab(expression(atop(Intensity~Trend,
                        (degree*C~days~yr^-1)))) +
   scale_y_continuous(breaks = seq(-0.4,0.4,0.1), limits = c(-0.4,0.4)) +
-  annotate(geom="label",x = 68, y = 0.4,label = "(c", fill = NA, label.size = NA, size = 6) +
+  annotate(geom="label",x = 68, y  = 0.4,label = "(c", fill = NA, label.size = NA, size = 6) +
+  annotate(geom="label",x = 70.2, y = -0.4,label = "Alaska", fill = NA, label.size = NA, size = 5, hjust  = 0.1, color = 'gray85') +
+  annotate(geom="label",x = 49.75, y = -0.4,label = "Northwest", fill = NA, label.size = NA, size = 5, hjust  = 0.1) +
+  annotate(geom="label",x = 46.5, y = -0.4,label = "WNC", fill = NA, label.size = NA, size = 5, hjust  = 0.15) +
+  annotate(geom="label",x = 42.5, y = -0.4,label = "ENC", fill = NA, label.size = NA, size = 5, hjust  = 0.15) +
+  annotate(geom="label",x = 31.5, y = -0.4,label = "Northeast", fill = NA, label.size = NA, size = 5, hjust  = 0.1) +
+  annotate(geom="label",x = 29.5, y = -0.4,label = "West", fill = NA, label.size = NA, size = 5, hjust  = 0.15, color = 'gray85') +
+  annotate(geom="label",x = 19.5, y = -0.4,label = "Southwest", fill = NA, label.size = NA, size = 5, hjust  = 0.1) +
+  annotate(geom="label",x = 14.5, y = -0.4,label = "South", fill = NA, label.size = NA, size = 5, hjust  = 0.15) +
+  annotate(geom="label",x = 1.5, y = -0.4,label = "Southeast", fill = NA, label.size = NA, size = 5, hjust  = 0.1) +
   theme_bw() +
   theme(panel.grid.major = element_line(colour = "black",linetype="longdash",size=0.1),
         text = element_text(size = 14),
@@ -1311,8 +1303,23 @@ hw_sum2 <- hw_sum %>%
   group_by(year) %>%
   summarise(MeanAnnualTotalDuration = mean(TotalDuration, na.rm = TRUE),
             MeanAnnualMaxIntensity = mean(Avg.MaxIntensity, na.rm = TRUE))
-summary(lm(hw_sum2$MeanAnnualTotalDuration~hw_sum2$year))
-summary(lm(hw_sum2$MeanAnnualMaxIntensity~hw_sum2$year))
+
+ts_duration = ts(data = hw_sum2[, 2],
+        frequency = 1,
+        start = 1996,
+        end = 2021)
+ts_intensity = ts(data = hw_sum2[, 3],
+                 frequency = 1,
+                 start = 1996,
+                 end = 2021)
+MannKendall(ts_duration) # p-value = 0.015
+MannKendall(ts_intensity) # p-value = 0.201
+
+library(zyp) # Need this package to get intercept for Sen's slope
+
+zyp.sen(MeanAnnualTotalDuration~year, hw_sum2)
+round((0.5253*1996)-1037.0127) # 11 HW days in 1996
+round((0.5253*2021)-1037.0127) # 25 HW days in 2021
 
 ggplot(data = hw_sum2, aes(x = year, y = MeanAnnualTotalDuration)) +
   geom_smooth(method = "lm", formula = y~x, color = "red", size = 0.5, se = TRUE) +
@@ -1321,11 +1328,8 @@ ggplot(data = hw_sum2, aes(x = year, y = MeanAnnualTotalDuration)) +
   scale_x_continuous(breaks = seq(1996, 2021, 4)) +
   scale_y_continuous(breaks = seq(0, 60, 5), limits = c(0,60)) +
   ylab("Avg. Total HW Days") +
-  annotate("text", x = 1998.4, y = 60, label = "y = 0.65x - 1283", size = 5, hjust = 0.23) +
-  annotate("text", x = 1996.75, y = 54,
-           label = "paste(R ^ 2, \" = 0.22\")", parse = TRUE, size = 5, hjust = 0) +
-  annotate("text", x = 1996.75, y = 48, label = "p-value = 0.017", size = 5, hjust = 0) +
-  annotate("text", x = 2019.5, y = 55, label = "(b", size = 6, hjust = 0) +
+  annotate("text", x = 1998, y = 60, label = "y = 0.5253x - 1037.0127", size = 5, hjust = 0) +
+  annotate("text", x = 1998, y = 54, label = "p-value = 0.015", size = 5, hjust = 0) +
   theme_bw() +
   theme(panel.grid = element_blank(),
         text = element_text(size = 16),
