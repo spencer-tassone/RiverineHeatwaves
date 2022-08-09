@@ -1,7 +1,3 @@
-library(data.table)
-library(dplyr)
-library(lubridate)
-library(tidyr)
 library(readr)
 library(zoo)
 library(broom)
@@ -11,16 +7,13 @@ library(heatwaveR)
 rm(list = ls())
 dev.off()
 
-setwd("F:/School/USGSdata/GitHub")
+setwd("D:/School/USGSdata/GitHub")
 
-Q_daily_dat <- read_csv('Q_daily_dat.csv', col_types = list(
-  agency_cd = col_character(),
-  site_no = col_character(),
-  Date = col_date(),
-  flow_cms = col_double(),
-  Flow_cd = col_character()))
-Q_daily_dat <- as.data.frame(Q_daily_dat)
-
+Q_daily_dat <- read.csv('Q_daily_dat.csv', colClasses = c(agency_cd = "character",
+                                                          site_no = "character",
+                                                          Date = "Date",
+                                                          flow_cms = "numeric",
+                                                          Flow_cd = "character"))
 # remove leap days
 remove_leap <- as.Date(c("1996-02-29","2000-02-29","2004-02-29",
                          "2008-02-29","2012-02-29","2016-02-29","2020-02-29"))
@@ -36,7 +29,6 @@ Q_daily_dat <- Q_daily_dat %>%
   group_by(Year,site_no) %>%
   mutate(DoY = cumsum(DoY)) %>%
   select(-Month)
-Q_daily_dat <- Q_daily_dat[,2:8]
 Q_daily_dat <- as.data.frame(Q_daily_dat)
 
 zz <- unique(Q_daily_dat$site_no)
@@ -73,4 +65,4 @@ Qdat_resid <- Qdat_resid %>%
 
 Qdat_resid <- Qdat_resid[,c(1,3,2,5:6,8:10)]
 
-write.csv(Qdat_resid,'ResidualQ.csv')
+write.csv(Qdat_resid,'ResidualQ_v2.csv', row.names = FALSE)
