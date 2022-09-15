@@ -52,7 +52,7 @@ for (i in 1:nrow(full_station_list)) {
   full_station_list$state[i] <- as.character(polygon_check$NAME)
 }
 full_station_list$STUSAB <- state.abb[match(full_station_list$state,state.name)]
-rm(list=setdiff(ls(), "full_station_list")) # 288 stations
+rm(list=setdiff(ls(), "full_station_list")) # 290 stations
 
 ### Extract daily mean water temperature from full_station_list. Also takes a while to run ~1-1.5 hours
 startDate <- "1996-01-01"
@@ -66,8 +66,8 @@ dat_final_large <- renameNWISColumns(dat_final_large)
 Wtemp_daily <- dat_final_large[,1:5]
 startDate <- as.Date("1996-01-01")
 endDate <- as.Date("2021-12-31")
-NROW(unique(Wtemp_daily$site_no))
-full_ts <- as.data.frame(rep(seq(from = startDate, to = endDate, by = "day"), times = 287))
+NROW(unique(Wtemp_daily$site_no)) # 289
+full_ts <- as.data.frame(rep(seq(from = startDate, to = endDate, by = "day"), times = 289))
 colnames(full_ts)[1] <- "Date"
 length(seq(from = startDate, to = endDate, by = 'day'))
 full_site <- as.data.frame(rep(unique(Wtemp_daily$site_no),times = 9497))
@@ -512,7 +512,7 @@ ggplot(data = temp_precipQ_trends, aes(x = sen.slope.atemp, y = sen.slope.wtemp)
 
 sum(temp_precipQ_trends$sen.slope.atemp > temp_precipQ_trends$sen.slope.wtemp) # 43 out of 70 (61%)
 sum(temp_precipQ_trends$sen.slope.atemp < temp_precipQ_trends$sen.slope.wtemp) # 27 out of 70 (39%)
-sum(temp_precipQ_trends$p.value.wtemp < 0.05) # water temp: 45 out of 70 (64%)
+sum(temp_precipQ_trends$p.value.wtemp < 0.05) # water temp: 46 out of 70 (66%)
 sum(temp_precipQ_trends$sen.slope.wtemp > 0) # water temp: 59 out of 70 (84%)
 sum(temp_precipQ_trends$p.value.wtemp < 0.05 & temp_precipQ_trends$sen.slope.wtemp > 0) # water temp: 43 out of 70 (61%)
 sum(temp_precipQ_trends$p.value.atemp < 0.05) # air temp: 44 out of 70 (63%)
@@ -627,7 +627,7 @@ SIfig4_atemp <- ggplot(data = temp_precipQ_trends, aes(x = site_no, y = sen.slop
   geom_rect(xmin = 13.5, xmax = 18.5, fill = "#abd9e9", ymin = -Inf, ymax = Inf, alpha = 0.03) +
   geom_rect(xmin = -Inf, xmax = 13.5, fill = "#ffffbf", ymin = -Inf, ymax = Inf, alpha = 0.03) +
   geom_hline(yintercept = 0, linetype = 'longdash') +
-  geom_point(aes(fill = factor(status.atemp)), shape = 21, size = 2) +
+  geom_point(aes(fill = factor(status.atemp)), shape = 21, size = 3) +
   scale_fill_manual(name = "",
                     labels = c("p-value > 0.05","p-value < 0.05"),
                     values = c("white","black")) +
@@ -655,7 +655,7 @@ SIfig4_wtemp <- ggplot(data = temp_precipQ_trends, aes(x = site_no, y = sen.slop
   geom_rect(xmin = 13.5, xmax = 18.5, fill = "#abd9e9", ymin = -Inf, ymax = Inf, alpha = 0.03) +
   geom_rect(xmin = -Inf, xmax = 13.5, fill = "#ffffbf", ymin = -Inf, ymax = Inf, alpha = 0.03) +
   geom_hline(yintercept = 0, linetype = 'longdash') +
-  geom_point(aes(fill = factor(status.wtemp)), shape = 21, size = 2) +
+  geom_point(aes(fill = factor(status.wtemp)), shape = 21, size = 3) +
   scale_fill_manual(name = "",
                     labels = c("p-value > 0.05","p-value < 0.05"),
                     values = c("white","black")) +
@@ -683,7 +683,7 @@ SIfig4_precip <- ggplot(data = temp_precipQ_trends, aes(x = site_no, y = sen.slo
   geom_rect(xmin = 13.5, xmax = 18.5, fill = "#abd9e9", ymin = -Inf, ymax = Inf, alpha = 0.03) +
   geom_rect(xmin = -Inf, xmax = 13.5, fill = "#ffffbf", ymin = -Inf, ymax = Inf, alpha = 0.03) +
   geom_hline(yintercept = 0, linetype = 'longdash') +
-  geom_point(aes(fill = factor(status.precip)), shape = 21, size = 2) +
+  geom_point(aes(fill = factor(status.precip)), shape = 21, size = 3) +
   scale_fill_manual(name = "",
                     labels = c("p-value > 0.05","p-value < 0.05"),
                     values = c("white","black")) +
@@ -711,7 +711,7 @@ SIfig4_q <- ggplot(data = temp_precipQ_trends, aes(x = site_no, y = sen.slope.q)
   geom_rect(xmin = 13.5, xmax = 18.5, fill = "#abd9e9", ymin = -Inf, ymax = Inf, alpha = 0.03) +
   geom_rect(xmin = -Inf, xmax = 13.5, fill = "#ffffbf", ymin = -Inf, ymax = Inf, alpha = 0.03) +
   geom_hline(yintercept = 0, linetype = 'longdash') +
-  geom_point(aes(fill = factor(status.q)), shape = 21, size = 2, na.rm = T) +
+  geom_point(aes(fill = factor(status.q)), shape = 21, size = 3, na.rm = T) +
   scale_fill_manual(name = "",
                     labels = c("p-value > 0.05","p-value < 0.05"),
                     values = c("white","black"),
