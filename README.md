@@ -7,6 +7,11 @@ Authors: Spencer J. Tassone*, Alice F. Besterman, Cal D. Buelo, Dat T. Ha, Jonat
 *Contact author: sjt7jc@virginia.edu
 
 
+
+[![DOI](https://zenodo.org/badge/374187154.svg)](https://zenodo.org/badge/latestdoi/374187154)
+
+
+
 ## Background
 River water temperature trends have been increasing since the 20th century. The drivers of these trends are related, in part, to increased diffusive vertical heat flux across the air-water surface from increasing atmospheric temperatures and alterations in water supply that increase advective heat fluxes. With projected climate warming, these heat fluxes are expected to intensify throughout the 21<sup>st</sup> century, increasing riverine water temperatures in most locations. 
 
