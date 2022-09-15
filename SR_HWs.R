@@ -56,8 +56,8 @@ wtemp_seaken <- wtemp_seaken %>%
 wtemp_seaken <- wtemp_seaken[,c(1:2,4:6)]
 colnames(wtemp_seaken) <- c("site_no","sen.slope.wtemp","p.value.wtemp","miss.wtemp","status.wtemp")
 
-sum(wtemp_seaken$p.value <= 0.05) # 45 (MK = 20)
-sum(wtemp_seaken$sen.slope > 0) # 59 (MK = 65)
+sum(wtemp_seaken$p.value <= 0.05) # 45
+sum(wtemp_seaken$sen.slope > 0) # 59
 sum(wtemp_seaken$sen.slope > 0 & wtemp_seaken$p.value <= 0.05) # 43 (MK = 19)
 
 Q_ts = ts(data = wide_month_mean_Q[, 3:53],
@@ -73,9 +73,9 @@ Q_seaken <- Q_seaken %>%
 Q_seaken <- Q_seaken[,c(1:2,4:6)]
 colnames(Q_seaken) <- c("site_no","sen.slope.Q","p.value.Q","miss.Q","status.Q")
 
-sum(Q_seaken$p.value <= 0.05) # 24 (MK = 10)
-sum(Q_seaken$sen.slope > 0) # 24 (MK = 26)
-sum(Q_seaken$sen.slope > 0 & Q_seaken$p.value <= 0.05) # 7 (MK = 3)
+sum(Q_seaken$p.value <= 0.05) # 24
+sum(Q_seaken$sen.slope > 0) # 24
+sum(Q_seaken$sen.slope > 0 & Q_seaken$p.value <= 0.05) # 7
 
 trends_wtemp_Q <- merge(wtemp_seaken,Q_seaken, by = "site_no", all = TRUE)
 
@@ -1191,7 +1191,7 @@ Fig3a <- ggplot(data = hw_site_output, aes(x = site_no, y = slope_Frequency)) +
   geom_rect(xmin = 13.5, xmax = 18.5, fill = "#abd9e9", ymin = -Inf, ymax = Inf, alpha = 0.03) +
   geom_rect(xmin = -Inf, xmax = 13.5, fill = "#ffffbf", ymin = -Inf, ymax = Inf, alpha = 0.03) +
   geom_hline(yintercept = 0, linetype = 'longdash') +
-  geom_point(aes(fill = factor(status_p.val_Frequency)), shape = 21, size = 2) +
+  geom_point(aes(fill = factor(status_p.val_Frequency)), shape = 21, size = 3) +
   scale_fill_manual(name = "",
                     labels = c("p-value > 0.05","p-value < 0.05"),
                     values = c("white","black")) +
@@ -1220,7 +1220,7 @@ Fig3b <- ggplot(data = hw_site_output, aes(x = site_no, y = slope_Avg.Duration))
   geom_rect(xmin = 13.5, xmax = 18.5, fill = "#abd9e9", ymin = -Inf, ymax = Inf, alpha = 0.03) +
   geom_rect(xmin = -Inf, xmax = 13.5, fill = "#ffffbf", ymin = -Inf, ymax = Inf, alpha = 0.03) +
   geom_hline(yintercept = 0, linetype = 'longdash') +
-  geom_point(aes(fill = factor(status_p.val_Avg.Duration)), shape = 21, size = 2) +
+  geom_point(aes(fill = factor(status_p.val_Avg.Duration)), shape = 21, size = 3) +
   scale_fill_manual(name = "",
                     labels = c("p-value > 0.05","p-value < 0.05"),
                     values = c("white","black")) +
@@ -1250,7 +1250,7 @@ Fig3c <- ggplot(data = hw_site_output, aes(x = site_no, y = slope_Avg.CuInt)) +
   geom_rect(xmin = 13.5, xmax = 18.5, fill = "#abd9e9", ymin = -Inf, ymax = Inf, alpha = 0.03) +
   geom_rect(xmin = -Inf, xmax = 13.5, fill = "#ffffbf", ymin = -Inf, ymax = Inf, alpha = 0.03) +
   geom_hline(yintercept = 0, linetype = 'longdash') +
-  geom_point(aes(fill = factor(status_p.val_Avg.CuInt)), shape = 21, size = 2) +
+  geom_point(aes(fill = factor(status_p.val_Avg.CuInt)), shape = 21, size = 3) +
   scale_fill_manual(name = "",
                     labels = c("p-value > 0.05","p-value < 0.05"),
                     values = c("white","black")) +
